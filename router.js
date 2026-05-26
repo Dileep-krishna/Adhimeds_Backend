@@ -2,7 +2,7 @@ const  express=require("express")
 const multer = require("multer");
 
 const multerConfig = require("./middlewares/multerConfig");
-const { addDeliveryBoy, getAllDeliveryBoys, deleteDeliveryBoy, updateDeliveryBoy,  } = require("./Controller/DeliveryboysController");
+const { addDeliveryBoy, getAllDeliveryBoys, deleteDeliveryBoy, updateDeliveryBoy,  } = require("./controller/DeliveryboysController");
 
 
 
