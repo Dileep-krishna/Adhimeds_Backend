@@ -25,14 +25,14 @@ router.get("/all", getAllDeliveryBoys);
 
 router.delete("/:id", deleteDeliveryBoy);
 
-// router.put(
-//   "/:id",
-//   multerConfig.fields([
-//     { name: "aadharImage", maxCount: 1 },
-//     { name: "licenseImage", maxCount: 1 }
-//   ]),
-//   updateDeliveryBoy
-// );
+router.put(
+  "/:id",
+  multerConfig.fields([
+    { name: "aadharImage", maxCount: 1 },
+    { name: "licenseImage", maxCount: 1 }
+  ]),
+  updateDeliveryBoy
+);
 
 
 
