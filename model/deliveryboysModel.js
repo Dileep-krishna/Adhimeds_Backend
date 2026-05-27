@@ -1,51 +1,57 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
-const deliveryBoySchema = new mongoose.Schema({
-  name: String,
-  email: { type: String, unique: true },
-  phone: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+const deliveryBoySchema = new mongoose.Schema(
+  {
+    name: String,
 
-  // Aadhar
-  aadharNumber: { type: String, required: true },
-  aadharImage: { type: String, required: true },
+    email: { type: String, unique: true },
 
-  // License
-  licenseNumber: { type: String, required: true },
-  licenseImage: { type: String, required: true },
+    phone: { type: String, required: true, unique: true },
 
-  // Bike
-  bikeNumber: { type: String, required: true },
+    password: { type: String, required: true },
 
-  // ✅ NEW FIELD
-  district: {
-    type: String,
-    required: true
+    // Aadhar
+    aadharNumber: { type: String, required: true },
+    aadharImage: { type: String, required: true },
+
+    // License
+    licenseNumber: { type: String, required: true },
+    licenseImage: { type: String, required: true },
+
+    // Bike
+    bikeNumber: { type: String, required: true },
+
+    // District
+    district: {
+      type: String,
+      required: true,
+    },
+
+    // Verification
+    isPhoneVerified: {
+      type: Boolean,
+      default: true,
+    },
+
+    isVerified: {
+      type: Boolean,
+      default: true,
+    },
+
+    isAvailable: {
+      type: Boolean,
+      default: true,
+    },
+
+    status: {
+      type: String,
+      enum: ["active", "inactive", "blocked"],
+      default: "active",
+    },
   },
-
-  // Admin Verified
-  isPhoneVerified: {
-    type: Boolean,
-    default: true
-  },
-
-  isVerified: {
-    type: Boolean,
-    default: true
-  },
-
-  isAvailable: {
-    type: Boolean,
-    default: true
-  },
-
-  status: {
-    type: String,
-    enum: ["active", "inactive", "blocked"],
-    default: "active"
-  }
-
-}, { timestamps: true });
+  { timestamps: true }
+);
 
 const Deliveryboys = mongoose.model("deliveryboys", deliveryBoySchema);
-module.exports = Deliveryboys;
+
+export default Deliveryboys;

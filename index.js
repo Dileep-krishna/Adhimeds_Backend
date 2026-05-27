@@ -1,13 +1,19 @@
-require("dotenv").config();
+import dotenv from "dotenv";
+dotenv.config();
 
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
+import express from "express";
+import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const router = require("./router");
-const connection = require("./connection");
+import router from "./router.js";
+import connection from "./connection.js";
 
 const app = express();
+
+// 🔥 FIX __dirname in ES module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Middlewares
 app.use(cors());
@@ -19,7 +25,10 @@ app.use("/imgUploads", express.static(path.join(__dirname, "imgUploads")));
 // Routes
 app.use(router);
 
-// 🔥 IMPORTANT FIX (Render PORT)
+// DB connection
+connection();
+
+// Server
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
