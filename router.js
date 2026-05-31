@@ -22,6 +22,7 @@ import {
 import { addMedicalStore, deleteMedicalStore, getAllMedicalStores, getMedicalStoreById, updateMedicalStore } from "./controllers/MedicalstoreManagementController.js";
 import { addStaff, deleteStaff, getAllStaff, getStaffById, updateStaff } from "./controllers/staffmanagementController.js";
 import { getAllRoles, getRolePermissions, updateRolePermissions } from "./controllers/roleController.js";
+import { addProduct, deleteProduct, getAllProducts, getProductById, updateProduct } from "./controllers/productController.js";
 
 // ✅ MEDICAL STORE CONTROLLERS
 
@@ -110,5 +111,27 @@ router.delete('/staff/:id', deleteStaff);
 router.get('/roles', getAllRoles);
 router.get('/roles/:roleName/permissions', getRolePermissions);
 router.put('/roles/:roleName/permissions', updateRolePermissions)
+// ================= product ROUTES =================
+router.post(
+  '/products',
+  multerConfig.fields([
+    { name: 'thumbnail', maxCount: 1 },
+    { name: 'galleryImages', maxCount: 10 },
+    { name: 'metaImage', maxCount: 1 }
+  ]),
+  addProduct
+);
+router.get('/products', getAllProducts);
+router.get('/products/:id', getProductById);
+router.put(
+  '/products/:id',
+  multerConfig.fields([
+    { name: 'thumbnail', maxCount: 1 },
+    { name: 'galleryImages', maxCount: 10 },
+    { name: 'metaImage', maxCount: 1 }
+  ]),
+  updateProduct
+);
+router.delete('/products/:id', deleteProduct);
 
 export default router;
