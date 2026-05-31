@@ -19,6 +19,12 @@ import {
   updateCategory,
   createCategory,
 } from "./controllers/categoryManagmentController.js";
+import { addMedicalStore, deleteMedicalStore, getAllMedicalStores, getMedicalStoreById, updateMedicalStore } from "./controllers/MedicalstoreManagementController.js";
+import { addStaff, deleteStaff, getAllStaff, getStaffById, updateStaff } from "./controllers/staffmanagementController.js";
+import { getAllRoles, getRolePermissions, updateRolePermissions } from "./controllers/roleController.js";
+
+// ✅ MEDICAL STORE CONTROLLERS
+
 
 const router = express.Router();
 
@@ -85,5 +91,24 @@ router.put(
 
 // DELETE CATEGORY
 router.delete("/category/:id", deleteCategory);
+
+// store-management router
+
+router.post('/store', addMedicalStore);
+router.get('/store', getAllMedicalStores);
+router.put('/store/:id', updateMedicalStore);
+router.delete('/store/:id', deleteMedicalStore);
+
+// ================= staff ROUTES =================
+router.post('/staff', addStaff);
+router.get('/staff', getAllStaff);
+router.get('/staff/:id', getStaffById);
+router.put('/staff/:id', updateStaff);
+router.delete('/staff/:id', deleteStaff);
+
+// ================= permission ROUTES =================
+router.get('/roles', getAllRoles);
+router.get('/roles/:roleName/permissions', getRolePermissions);
+router.put('/roles/:roleName/permissions', updateRolePermissions)
 
 export default router;

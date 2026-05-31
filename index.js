@@ -8,6 +8,8 @@ import { fileURLToPath } from "url";
 
 import router from "./router.js";
 import connection from "./connection.js";
+import Role from './model/Role.js';
+
 
 const app = express();
 
@@ -27,6 +29,19 @@ app.use(router);
 
 // DB connection
 connection();
+
+
+const seedRoles = async () => {
+  const roles = ['Pharmacist', 'Store Manager', 'Delivery Coordinator', 'Customer Support', 'Accountant', 'Admin'];
+  for (const name of roles) {
+    const exists = await Role.findOne({ name });
+    if (!exists) {
+      await Role.create({ name, permissions: [] });
+      console.log(`✅ Created role: ${name}`);
+    }
+  }
+};
+await seedRoles();
 
 // Server
 const PORT = process.env.PORT || 5000;
