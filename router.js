@@ -24,6 +24,7 @@ import { addStaff, deleteStaff, getAllStaff, getStaffById, updateStaff } from ".
 import { getAllRoles, getRolePermissions, updateRolePermissions } from "./controllers/roleController.js";
 import { addProduct, deleteProduct, getAllProducts, getProductById, updateProduct } from "./controllers/productController.js";
 
+
 // ✅ MEDICAL STORE CONTROLLERS
 
 
@@ -94,10 +95,21 @@ router.put(
 router.delete("/category/:id", deleteCategory);
 
 // store-management router
+router.post(
+  '/store',
+  multerConfig.array('thumbnailImages', 10), // max 10 images
+  addMedicalStore
+);
 
-router.post('/store', addMedicalStore);
 router.get('/store', getAllMedicalStores);
-router.put('/store/:id', updateMedicalStore);
+router.get('/store/:id', getMedicalStoreById);
+
+router.put(
+  '/store/:id',
+  multerConfig.array('thumbnailImages', 10),
+  updateMedicalStore
+);
+
 router.delete('/store/:id', deleteMedicalStore);
 
 // ================= staff ROUTES =================
@@ -133,5 +145,7 @@ router.put(
   updateProduct
 );
 router.delete('/products/:id', deleteProduct);
+
+
 
 export default router;

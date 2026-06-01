@@ -2,21 +2,12 @@ import mongoose from "mongoose";
 
 const medicalStoreSchema = new mongoose.Schema(
   {
-    // Store Name (required, as shown in form with *)
+    // Required fields (store name + location)
     storeName: {
       type: String,
       required: [true, 'Store name is required'],
       trim: true,
     },
-
-    // Search location entered by user (city, landmark, address)
-    searchLocation: {
-      type: String,
-      trim: true,
-      required: [true, 'Search location is required'],
-    },
-
-    // Exact coordinates from map marker
     latitude: {
       type: Number,
       required: true,
@@ -30,47 +21,68 @@ const medicalStoreSchema = new mongoose.Schema(
       max: 180,
     },
 
-    // Auto-filled address from geocoding service
-    address: {
+    // Optional fields (user may leave empty)
+    searchLocation: {
       type: String,
-      required: true,
       trim: true,
     },
-
-    // Status field with allowed values (active, inactive, pending)
+    address: {
+      type: String,
+      trim: true,
+    },
     status: {
       type: String,
       enum: ['active', 'inactive', 'pending'],
-      default: 'pending',          // default to pending until verified/approved
-      required: true,
+      default: 'pending',
+    },
+    vendorCategory: {
+      type: String,
+      enum: ['medical store', 'Lab test', 'Ayurveda store'],
+    },
+    pincode: {
+      type: String,
+      trim: true,
+      match: [/^\d{6}$/, 'Pincode must be exactly 6 digits'],
+    },
+    emailAddress: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address'],
+    },
+    thumbnailImages: {
+      type: [String],
+      default: [],
+    },
+    password: {
+      type: String,
+      minlength: [6, 'Password must be at least 6 characters'],
+    },
+    drugLicenseNumber: {
+      type: String,
+      trim: true,
+    },
+    gstNumber: {
+      type: String,
+      trim: true,
+    },
+    contactNumber: {
+      type: String,
+      trim: true,
+      match: [/^\d{10}$/, 'Contact number must be 10 digits'],
+    },
+    pharmacistName: {
+      type: String,
+      trim: true,
     },
   },
   {
-    timestamps: true,               // automatically adds createdAt & updatedAt
+    timestamps: true,
   }
 );
 
-// Optional: Create a geospatial index for location-based queries (e.g., nearby stores)
+// Compound index for location-based queries
 medicalStoreSchema.index({ latitude: 1, longitude: 1 });
-
-// If you prefer a GeoJSON point field for advanced spatial queries (e.g., $nearSphere):
-// Uncomment the following block and remove latitude/longitude fields above.
-/*
-medicalStoreSchema.add({
-  location: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      default: 'Point',
-    },
-    coordinates: {
-      type: [Number], // [longitude, latitude]
-      required: true,
-    },
-  },
-});
-medicalStoreSchema.index({ location: '2dsphere' });
-*/
 
 const MedicalStore = mongoose.model('MedicalStore', medicalStoreSchema);
 export default MedicalStore;
