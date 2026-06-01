@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 
 const staffMemberSchema = new mongoose.Schema(
   {
@@ -13,11 +14,6 @@ const staffMemberSchema = new mongoose.Schema(
       trim: true,
       match: [/^\+?[0-9\s\-\(\)]{10,15}$/, 'Please enter a valid phone number'],
     },
-    district: {
-      type: String,
-      required: [true, 'District is required'],
-      trim: true,
-    },
     joiningDate: {
       type: Date,
       required: [true, 'Joining date is required'],
@@ -31,9 +27,14 @@ const staffMemberSchema = new mongoose.Schema(
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address'],
     },
+    password: {
+      type: String,
+      required: [true, 'Password is required'],
+      minlength: [6, 'Password must be at least 6 characters'],
+    },
     role: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Role',               // ✅ References the Role model
+      ref: 'Role',
       required: [true, 'Role is required'],
     },
     storeId: {
@@ -43,7 +44,6 @@ const staffMemberSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      required: [true, 'Status is required'],
       enum: ['active', 'inactive', 'pending'],
       default: 'active',
     },
@@ -54,6 +54,20 @@ const staffMemberSchema = new mongoose.Schema(
 // Indexes
 staffMemberSchema.index({ storeId: 1 });
 staffMemberSchema.index({ status: 1 });
+
+// ✅ Correct pre-save hook using async/await without `next`
+staffMemberSchema.pre('save', async function() {
+  // Only hash the password if it has been modified (or is new)
+  if (!this.isModified('password')) return;
+  
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+});
+
+// Compare password method
+staffMemberSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 const StaffMember = mongoose.model('StaffMember', staffMemberSchema);
 export default StaffMember;

@@ -21,8 +21,10 @@ import {
 } from "./controllers/categoryManagmentController.js";
 import { addMedicalStore, deleteMedicalStore, getAllMedicalStores, getMedicalStoreById, updateMedicalStore } from "./controllers/MedicalstoreManagementController.js";
 import { addStaff, deleteStaff, getAllStaff, getStaffById, updateStaff } from "./controllers/staffmanagementController.js";
-import { getAllRoles, getRolePermissions, updateRolePermissions } from "./controllers/roleController.js";
+import { createRole, deleteRole, getAllRoles, getRoleById, updateRole, updateRolePermissions } from "./controllers/roleController.js";
 import { addProduct, deleteProduct, getAllProducts, getProductById, updateProduct } from "./controllers/productController.js";
+import { deleteRolePermissions, getRolePermissions, setRolePermissions } from "./controllers/rolePermissionController.js";
+import { createBrand, deleteBrand, getAllBrands, getBrandById, updateBrand } from "./controllers/brandController.js";
 
 
 // ✅ MEDICAL STORE CONTROLLERS
@@ -121,8 +123,11 @@ router.delete('/staff/:id', deleteStaff);
 
 // ================= permission ROUTES =================
 router.get('/roles', getAllRoles);
-router.get('/roles/:roleName/permissions', getRolePermissions);
-router.put('/roles/:roleName/permissions', updateRolePermissions)
+router.get('/roles/:id', getRoleById);
+router.post('/roles', createRole);
+router.put('/roles/:id', updateRole);
+router.delete('/roles/:id', deleteRole);
+
 // ================= product ROUTES =================
 router.post(
   '/products',
@@ -145,7 +150,17 @@ router.put(
   updateProduct
 );
 router.delete('/products/:id', deleteProduct);
+// -----------------Role Permissions-----------------
+router.get('/role-permissions/:roleName', getRolePermissions);
+router.put('/role-permissions/:roleName', setRolePermissions);
+router.delete('/role-permissions/:roleName', deleteRolePermissions);
+// Brand routes with file upload (single file, field name = "logo")
 
+router.get('/brands', getAllBrands);
+router.get('/brands/:id', getBrandById);
+router.post('/brands', multerConfig.single('logo'), createBrand);
+router.put('/brands/:id', multerConfig.single('logo'), updateBrand);
+router.delete('/brands/:id', deleteBrand);
 
 
 export default router;

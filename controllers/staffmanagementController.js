@@ -1,7 +1,7 @@
 // controllers/staffmanagementController.js
 import mongoose from 'mongoose';
 import StaffMember from '../model/staffmanagementModel.js';
-import Role from '../model/Role.js';          // ✅ import Role model
+import Role from '../model/Role.js';
 
 // Helper functions
 const isValidEmail = (email) => /^\S+@\S+\.\S+$/.test(email);
@@ -22,10 +22,10 @@ const getRoleIdByName = async (roleName) => {
 // -------------------------------
 export const addStaff = async (req, res) => {
   try {
-    const { fullName, phone, district, joiningDate, email, role, storeId, status } = req.body;
+    const { fullName, phone, joiningDate, email, role, storeId, status, password } = req.body;
 
     // Required fields
-    const requiredFields = ['fullName', 'phone', 'district', 'email', 'role'];
+    const requiredFields = ['fullName', 'phone', 'email', 'role', 'password'];
     const missing = requiredFields.filter(field => !req.body[field]);
     if (missing.length) {
       return res.status(400).json({ success: false, message: `Missing: ${missing.join(', ')}` });
@@ -38,33 +38,27 @@ export const addStaff = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid email' });
     if (!isValidPhone(phone))
       return res.status(400).json({ success: false, message: 'Invalid phone' });
-    if (district.trim().length < 2)
-      return res.status(400).json({ success: false, message: 'District min 2 chars' });
+    if (!password || password.length < 6)
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
 
-    const allowedRoles = ['Pharmacist', 'Store Manager', 'Delivery Coordinator', 'Customer Support', 'Accountant', 'Admin'];
-    if (!allowedRoles.includes(role))
-      return res.status(400).json({ success: false, message: 'Invalid role' });
-
-    // Convert role name → ObjectId
+    // Role name → ObjectId
     const roleId = await getRoleIdByName(role);
     if (!roleId)
-      return res.status(400).json({ success: false, message: `Role "${role}" not found in DB` });
+      return res.status(400).json({ success: false, message: `Role "${role}" not found` });
 
     // Joining date
     let validJoiningDate = joiningDate ? new Date(joiningDate) : new Date();
     if (joiningDate && !isValidDate(joiningDate))
       return res.status(400).json({ success: false, message: 'Invalid joining date' });
     if (validJoiningDate > new Date())
-      return res.status(400).json({ success: false, message: 'Joining date cannot be in future' });
+      return res.status(400).json({ success: false, message: 'Joining date cannot be future' });
 
     // Optional storeId
     if (storeId && !isValidObjectId(storeId))
       return res.status(400).json({ success: false, message: 'Invalid storeId' });
 
     // Status default
-    let finalStatus = status || 'active';
-    if (!allowedStatuses.includes(finalStatus))
-      return res.status(400).json({ success: false, message: 'Invalid status' });
+    const finalStatus = allowedStatuses.includes(status) ? status : 'active';
 
     // Duplicate email check
     const existing = await StaffMember.findOne({ email: email.toLowerCase() });
@@ -74,18 +68,22 @@ export const addStaff = async (req, res) => {
     const newStaff = new StaffMember({
       fullName: fullName.trim(),
       phone: phone.trim(),
-      district: district.trim(),
       joiningDate: validJoiningDate,
       email: email.toLowerCase().trim(),
-      role: roleId,                 // ✅ ObjectId
+      role: roleId,
       storeId: storeId || null,
       status: finalStatus,
+      password,
     });
 
     const saved = await newStaff.save();
-    // Populate role for response
+
+    // ✅ Correct population and password removal
     await saved.populate('role', 'name');
-    res.status(201).json({ success: true, data: saved });
+    const staffData = saved.toObject();
+    delete staffData.password;
+
+    res.status(201).json({ success: true, data: staffData });
   } catch (error) {
     console.error('Error adding staff:', error);
     if (error.code === 11000)
@@ -125,7 +123,8 @@ export const getAllStaff = async (req, res) => {
     const skip = (page - 1) * limit;
     const [staff, total] = await Promise.all([
       StaffMember.find(filter)
-        .populate('role', 'name')               // ✅ returns role.name
+        .select('-password')
+        .populate('role', 'name')
         .populate('storeId', 'storeName')
         .skip(skip)
         .limit(limit)
@@ -155,6 +154,7 @@ export const getStaffById = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid staff ID' });
 
     const staff = await StaffMember.findById(id)
+      .select('-password')
       .populate('role', 'name')
       .populate('storeId', 'storeName')
       .lean();
@@ -178,7 +178,7 @@ export const updateStaff = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid staff ID' });
 
     const updateData = req.body;
-    const allowedUpdates = ['fullName', 'phone', 'district', 'joiningDate', 'email', 'role', 'storeId', 'status'];
+    const allowedUpdates = ['fullName', 'phone', 'joiningDate', 'email', 'role', 'storeId', 'status', 'password'];
     const filtered = {};
 
     for (const key of allowedUpdates) {
@@ -195,8 +195,6 @@ export const updateStaff = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid phone' });
           filtered.phone = updateData.phone.trim();
         }
-        if (key === 'district' && updateData.district.trim().length < 2)
-          return res.status(400).json({ success: false, message: 'District min 2 chars' });
         if (key === 'role') {
           const roleId = await getRoleIdByName(updateData.role);
           if (!roleId)
@@ -221,8 +219,10 @@ export const updateStaff = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid status' });
           filtered.status = updateData.status;
         }
-        if (!['email', 'role', 'joiningDate', 'storeId', 'status'].includes(key) && updateData[key] !== undefined) {
-          filtered[key] = typeof updateData[key] === 'string' ? updateData[key].trim() : updateData[key];
+        if (key === 'password') {
+          if (updateData.password && updateData.password.length < 6)
+            return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+          filtered.password = updateData.password;
         }
       }
     }
@@ -238,6 +238,7 @@ export const updateStaff = async (req, res) => {
     }
 
     const updated = await StaffMember.findByIdAndUpdate(id, filtered, { new: true, runValidators: true })
+      .select('-password')
       .populate('role', 'name')
       .populate('storeId', 'storeName');
     if (!updated)
