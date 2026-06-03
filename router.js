@@ -28,6 +28,7 @@ import { createBrand, deleteBrand, getAllBrands, getBrandById, updateBrand } fro
 import { createWarranty, deleteWarranty, getAllWarranties, getWarrantyById, updateWarranty } from "./controllers/warrantyController.js";
 import { createNote, deleteNote, getAllNotes, getNoteById, updateNote } from "./controllers/noteController.js";
 import { createAttribute, deleteAttribute, getAttributeById, getAttributes, updateAttribute } from "./controllers/attributeController.js";
+import { createColor, deleteColor, getColorById, getColors, updateColor } from "./controllers/colorController.js";
 
 
 // ✅ MEDICAL STORE CONTROLLERS
@@ -183,6 +184,12 @@ router.get('/attributes/:id', getAttributeById);
 router.post('/attributes', createAttribute);
 router.put('/attributes/:id', updateAttribute);
 router.delete('/attributes/:id', deleteAttribute);
+// ===============color routes=============
+router.get('/colors', getColors);
+router.get('/colors/:id', getColorById);
+router.post('/colors', createColor);
+router.put('/colors/:id', updateColor);
+router.delete('/colors/:id', deleteColor);
 
 
 export default router;
