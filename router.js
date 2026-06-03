@@ -27,6 +27,7 @@ import { deleteRolePermissions, getRolePermissions, setRolePermissions } from ".
 import { createBrand, deleteBrand, getAllBrands, getBrandById, updateBrand } from "./controllers/brandController.js";
 import { createWarranty, deleteWarranty, getAllWarranties, getWarrantyById, updateWarranty } from "./controllers/warrantyController.js";
 import { createNote, deleteNote, getAllNotes, getNoteById, updateNote } from "./controllers/noteController.js";
+import { createAttribute, deleteAttribute, getAttributeById, getAttributes, updateAttribute } from "./controllers/attributeController.js";
 
 
 // ✅ MEDICAL STORE CONTROLLERS
@@ -175,5 +176,13 @@ router.get('/notes/:id', getNoteById);
 router.post('/notes', multerConfig.single('image'), createNote);
 router.put('/notes/:id', multerConfig.single('image'), updateNote);
 router.delete('/notes/:id', deleteNote);
+
+// ================= ATTRIBUTE ROUTES (explicit, same style as notes) =================
+router.get('/attributes', getAttributes);
+router.get('/attributes/:id', getAttributeById);
+router.post('/attributes', createAttribute);
+router.put('/attributes/:id', updateAttribute);
+router.delete('/attributes/:id', deleteAttribute);
+
 
 export default router;

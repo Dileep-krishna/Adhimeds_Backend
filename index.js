@@ -20,6 +20,7 @@ const __dirname = path.dirname(__filename);
 // Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Static folder
 app.use("/imgUploads", express.static(path.join(__dirname, "imgUploads")));
