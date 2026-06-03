@@ -25,6 +25,8 @@ import { createRole, deleteRole, getAllRoles, getRoleById, updateRole, updateRol
 import { addProduct, deleteProduct, getAllProducts, getProductById, updateProduct } from "./controllers/productController.js";
 import { deleteRolePermissions, getRolePermissions, setRolePermissions } from "./controllers/rolePermissionController.js";
 import { createBrand, deleteBrand, getAllBrands, getBrandById, updateBrand } from "./controllers/brandController.js";
+import { createWarranty, deleteWarranty, getAllWarranties, getWarrantyById, updateWarranty } from "./controllers/warrantyController.js";
+import { createNote, deleteNote, getAllNotes, getNoteById, updateNote } from "./controllers/noteController.js";
 
 
 // ✅ MEDICAL STORE CONTROLLERS
@@ -161,6 +163,17 @@ router.get('/brands/:id', getBrandById);
 router.post('/brands', multerConfig.single('logo'), createBrand);
 router.put('/brands/:id', multerConfig.single('logo'), updateBrand);
 router.delete('/brands/:id', deleteBrand);
-
+// ================= WARRANTY ROUTES =================
+router.get('/warranties', getAllWarranties);
+router.get('/warranties/:id', getWarrantyById);
+router.post('/warranties', multerConfig.single('logo'), createWarranty);
+router.put('/warranties/:id', multerConfig.single('logo'), updateWarranty);
+router.delete('/warranties/:id', deleteWarranty);
+// ================= NOTE ROUTES =================
+router.get('/notes', getAllNotes);
+router.get('/notes/:id', getNoteById);
+router.post('/notes', multerConfig.single('image'), createNote);
+router.put('/notes/:id', multerConfig.single('image'), updateNote);
+router.delete('/notes/:id', deleteNote);
 
 export default router;
