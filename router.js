@@ -30,6 +30,7 @@ import { createNote, deleteNote, getAllNotes, getNoteById, updateNote } from "./
 import { createAttribute, deleteAttribute, getAttributeById, getAttributes, updateAttribute } from "./controllers/attributeController.js";
 import { createColor, deleteColor, getColorById, getColors, updateColor } from "./controllers/colorController.js";
 import { createCustomReview, deleteCustomReview, getAllCustomReviews, getCustomReviewById, updateCustomReview } from "./controllers/customReviewController.js";
+import { adminLogin } from "./controllers/authController.js";
 
 
 // ✅ MEDICAL STORE CONTROLLERS
@@ -201,6 +202,9 @@ customReviewRouter.delete('/:id', deleteCustomReview);
 
 // Mount under /custom-reviews
 router.use('/custom-reviews', customReviewRouter);
+
+// =======admin login============
+router.post('/login', adminLogin);
 
 
 export default router;
