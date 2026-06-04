@@ -2,17 +2,17 @@
 import Product from '../model/AddProductPageModel.js';
 
 // -------------------------------
-// 1. CREATE a new product (your existing code – unchanged)
+// 1. CREATE a new product
 // -------------------------------
 export const addProduct = async (req, res) => {
   try {
-    // Extract file names from multer (if files were uploaded)
+    // Extract files
     const thumbnail = req.files?.thumbnail?.[0]?.filename || '';
     const metaImage = req.files?.metaImage?.[0]?.filename || '';
     const galleryImages = req.files?.galleryImages?.map(f => f.filename) || [];
 
-    // Merge text fields with file fields
-    const {
+    // Extract all text fields
+    let {
       productName,
       mainCategory,
       brand,
@@ -55,19 +55,60 @@ export const addProduct = async (req, res) => {
       frequentlyBought,
     } = req.body;
 
-    // Convert numeric fields that might come as strings
-    const toNumber = (val, def = 0) => (val !== undefined && val !== '') ? Number(val) : def;
+    // ========== PARSE JSON strings (coming from FormData) ==========
+    if (typeof relatedCategories === 'string') {
+      try { relatedCategories = JSON.parse(relatedCategories); } catch(e) { relatedCategories = []; }
+    }
+    if (typeof tags === 'string') {
+      try { tags = JSON.parse(tags); } catch(e) { tags = []; }
+    }
+    if (typeof attributes === 'string') {
+      try { attributes = JSON.parse(attributes); } catch(e) { attributes = []; }
+    }
+    if (typeof frequentlyBought === 'string') {
+      try { frequentlyBought = JSON.parse(frequentlyBought); } catch(e) { frequentlyBought = []; }
+    }
 
-    // Build product object
+    // Ensure arrays
+    relatedCategories = Array.isArray(relatedCategories) ? relatedCategories : [];
+    tags = Array.isArray(tags) ? tags : [];
+    attributes = Array.isArray(attributes) ? attributes : [];
+    frequentlyBought = Array.isArray(frequentlyBought) ? frequentlyBought : [];
+
+    // ========== VALIDATE MANDATORY FIELDS (tags is NOT mandatory) ==========
+    const missingFields = [];
+    if (!productName) missingFields.push('productName');
+    if (!mainCategory) missingFields.push('mainCategory');
+    if (!brand) missingFields.push('brand');
+    if (!relatedCategories || relatedCategories.length === 0) missingFields.push('relatedCategories');
+    if (!unit) missingFields.push('unit');
+    if (weight === undefined || weight === '') missingFields.push('weight');
+    if (!minPurchaseQty) missingFields.push('minPurchaseQty');
+    // tags are optional – no validation
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing mandatory fields: ${missingFields.join(', ')}`,
+      });
+    }
+
+    // Convert numeric fields
+    const toNumber = (val, def = 0) => {
+      const num = Number(val);
+      return isNaN(num) ? def : num;
+    };
+
+    // Build product data
     const productData = {
-      productName: productName || '',
-      mainCategory: mainCategory || '',
-      brand: brand || '',
-      relatedCategories: relatedCategories || [],
-      unit: unit || '',
+      productName: productName.trim(),
+      mainCategory: mainCategory.trim(),
+      brand: brand.trim(),
+      relatedCategories,
+      unit: unit.trim(),
       weight: toNumber(weight, 0),
       minPurchaseQty: toNumber(minPurchaseQty, 1),
-      tags: tags || [],
+      tags, // optional – may be empty array
       published: published !== undefined ? (published === 'true' || published === true) : true,
       featured: featured === 'true' || featured === true,
       todaysDeal: todaysDeal === 'true' || todaysDeal === true,
@@ -86,7 +127,7 @@ export const addProduct = async (req, res) => {
       shippingNote: shippingNote || 'This product is shipped within 2-3 business days.',
       codAvailable: codAvailable === 'true' || codAvailable === true,
       codNote: codNote || 'Cash on delivery available for orders within India.',
-      attributes: attributes || [],
+      attributes,
       unitPrice: toNumber(unitPrice, 0),
       discount: toNumber(discount, 0),
       discountType: discountType || 'percent',
@@ -102,7 +143,7 @@ export const addProduct = async (req, res) => {
       hideStock: hideStock || 'none',
       lowStockWarning: toNumber(lowStockWarning, 0),
       quantity: toNumber(quantity, 1),
-      frequentlyBought: frequentlyBought || [],
+      frequentlyBought,
     };
 
     const newProduct = new Product(productData);
@@ -130,7 +171,6 @@ export const getAllProducts = async (req, res) => {
   try {
     let { page = 1, limit = 10, search, category, minPrice, maxPrice, published, featured, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
 
-    // Pagination
     page = parseInt(page);
     limit = parseInt(limit);
     if (isNaN(page) || page < 1) page = 1;
@@ -138,7 +178,6 @@ export const getAllProducts = async (req, res) => {
     if (limit > 100) limit = 100;
     const skip = (page - 1) * limit;
 
-    // Build filter object
     const filter = {};
     if (search) {
       filter.$or = [
@@ -148,7 +187,12 @@ export const getAllProducts = async (req, res) => {
         { barcode: { $regex: search, $options: 'i' } },
       ];
     }
-    if (category) filter.mainCategory = category;
+    
+    // 🔧 FIX: Case‑insensitive category matching
+    if (category) {
+      filter.mainCategory = { $regex: new RegExp(`^${category}$`, 'i') };
+    }
+    
     if (published !== undefined) filter.published = published === 'true';
     if (featured !== undefined) filter.featured = featured === 'true';
     if (minPrice || maxPrice) {
@@ -157,7 +201,6 @@ export const getAllProducts = async (req, res) => {
       if (maxPrice) filter.unitPrice.$lte = parseFloat(maxPrice);
     }
 
-    // Sorting
     const sort = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
 
     const [products, total] = await Promise.all([
@@ -219,10 +262,8 @@ export const updateProduct = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid product ID format' });
     }
 
-    // For updates, we accept partial data (any field can be omitted)
     let updateData = { ...req.body };
 
-    // If new files are uploaded, override the existing ones
     if (req.files?.thumbnail?.[0]?.filename) {
       updateData.thumbnail = req.files.thumbnail[0].filename;
     }
@@ -233,10 +274,21 @@ export const updateProduct = async (req, res) => {
       updateData.galleryImages = req.files.galleryImages.map(f => f.filename);
     }
 
-    // Remove internal fields
     delete updateData._id;
     delete updateData.createdAt;
     delete updateData.updatedAt;
+
+    // Parse JSON strings if present (for arrays)
+    const arrayFields = ['relatedCategories', 'tags', 'attributes', 'frequentlyBought'];
+    arrayFields.forEach(field => {
+      if (typeof updateData[field] === 'string') {
+        try {
+          updateData[field] = JSON.parse(updateData[field]);
+        } catch (e) {
+          updateData[field] = [];
+        }
+      }
+    });
 
     // Convert boolean/numeric strings
     const boolFields = ['published', 'featured', 'todaysDeal', 'refundable', 'freeShipping', 'flatRate', 'quantityMultiply', 'codAvailable'];
@@ -276,6 +328,7 @@ export const updateProduct = async (req, res) => {
     });
   }
 };
+
 // -------------------------------
 // 5. DELETE a product by ID
 // -------------------------------

@@ -5,18 +5,25 @@ const storage = multer.diskStorage({
     cb(null, "imgUploads");
   },
   filename: (req, file, cb) => {
-    cb(null, `image-${Date.now()}-${file.originalname}`);
+    cb(null, `file-${Date.now()}-${file.originalname}`);
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  // Allow images for all fields (thumbnail, galleryImages, metaImage, etc.)
+  // Allow images for any field
   if (file.mimetype.startsWith("image/")) {
     cb(null, true);
   }
-  // Allow PDF/DOC/DOCX but only for the field named 'prescriptionFile'
+  // Allow videos for fields named 'videoFile' or 'videoThumbnail'
   else if (
-    file.fieldname === "prescriptionFile" &&
+    (file.fieldname === "videoFile" || file.fieldname === "videoThumbnail") &&
+    file.mimetype.startsWith("video/")
+  ) {
+    cb(null, true);
+  }
+  // Allow PDF/DOC/DOCX for fields named 'pdfSpec' or 'prescriptionFile'
+  else if (
+    (file.fieldname === "pdfSpec" || file.fieldname === "prescriptionFile") &&
     (file.mimetype === "application/pdf" ||
      file.mimetype === "application/msword" ||
      file.mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
@@ -24,13 +31,14 @@ const fileFilter = (req, file, cb) => {
     cb(null, true);
   }
   else {
-    cb(new Error("Only image files are allowed (or PDF/DOC for prescription)"), false);
+    cb(new Error(`File type not allowed for field "${file.fieldname}"`), false);
   }
 };
 
 const multerConfig = multer({
   storage,
   fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit for videos/pdfs
 });
 
 export default multerConfig;

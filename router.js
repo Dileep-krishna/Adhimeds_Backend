@@ -29,6 +29,7 @@ import { createWarranty, deleteWarranty, getAllWarranties, getWarrantyById, upda
 import { createNote, deleteNote, getAllNotes, getNoteById, updateNote } from "./controllers/noteController.js";
 import { createAttribute, deleteAttribute, getAttributeById, getAttributes, updateAttribute } from "./controllers/attributeController.js";
 import { createColor, deleteColor, getColorById, getColors, updateColor } from "./controllers/colorController.js";
+import { createCustomReview, deleteCustomReview, getAllCustomReviews, getCustomReviewById, updateCustomReview } from "./controllers/customReviewController.js";
 
 
 // ✅ MEDICAL STORE CONTROLLERS
@@ -133,26 +134,19 @@ router.put('/roles/:id', updateRole);
 router.delete('/roles/:id', deleteRole);
 
 // ================= product ROUTES =================
-router.post(
-  '/products',
-  multerConfig.fields([
-    { name: 'thumbnail', maxCount: 1 },
-    { name: 'galleryImages', maxCount: 10 },
-    { name: 'metaImage', maxCount: 1 }
-  ]),
-  addProduct
-);
+const productUploadFields = multerConfig.fields([
+  { name: 'thumbnail', maxCount: 1 },
+  { name: 'galleryImages', maxCount: 10 },
+  { name: 'metaImage', maxCount: 1 },
+  { name: 'videoFile', maxCount: 1 },
+  { name: 'videoThumbnail', maxCount: 1 },
+  { name: 'pdfSpec', maxCount: 1 },
+]);
+
+router.post('/products', productUploadFields, addProduct);
 router.get('/products', getAllProducts);
 router.get('/products/:id', getProductById);
-router.put(
-  '/products/:id',
-  multerConfig.fields([
-    { name: 'thumbnail', maxCount: 1 },
-    { name: 'galleryImages', maxCount: 10 },
-    { name: 'metaImage', maxCount: 1 }
-  ]),
-  updateProduct
-);
+router.put('/products/:id', productUploadFields, updateProduct);
 router.delete('/products/:id', deleteProduct);
 // -----------------Role Permissions-----------------
 router.get('/role-permissions/:roleName', getRolePermissions);
@@ -190,6 +184,23 @@ router.get('/colors/:id', getColorById);
 router.post('/colors', createColor);
 router.put('/colors/:id', updateColor);
 router.delete('/colors/:id', deleteColor);
+// ==========product review path============
+// ========== CUSTOM REVIEW ROUTES (with named path) ==========
+const customReviewRouter = express.Router();
+
+const uploadFields = multerConfig.fields([
+  { name: 'reviewerImage', maxCount: 1 },
+  { name: 'newImages', maxCount: 10 }
+]);
+
+customReviewRouter.post('/', uploadFields, createCustomReview);
+customReviewRouter.get('/', getAllCustomReviews);
+customReviewRouter.get('/:id', getCustomReviewById);
+customReviewRouter.put('/:id', uploadFields, updateCustomReview);
+customReviewRouter.delete('/:id', deleteCustomReview);
+
+// Mount under /custom-reviews
+router.use('/custom-reviews', customReviewRouter);
 
 
 export default router;
