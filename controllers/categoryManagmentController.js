@@ -72,31 +72,30 @@ export const updateCategory = async (req, res) => {
     const { name, type, parent, order, isFeatured, status, metaTitle, metaDescription } = req.body;
 
     const category = await Category.findById(req.params.id);
-
     if (!category) {
       return res.status(404).json({ message: "Category not found" });
     }
 
-    // Update text fields (keeping existing logic, but using nullish coalescing for falsy values)
-    category.name = name ?? category.name;
-    category.type = type ?? category.type;
-    category.parent = parent ?? category.parent;
-    category.order = order ?? category.order;
-    category.isFeatured = isFeatured ?? category.isFeatured;
-    category.status = status ?? category.status;
-    category.metaTitle = metaTitle ?? category.metaTitle;
-    category.metaDescription = metaDescription ?? category.metaDescription;
+    // 🔥 Convert "null" or empty string to actual null
+    let parentValue = parent;
+    if (parentValue === "null" || parentValue === "") {
+      parentValue = null;
+    }
 
-    // IMAGE UPDATES (icon, coverImage, banner)
-    if (req.files?.icon) {
-      category.icon = req.files.icon[0].filename;
-    }
-    if (req.files?.coverImage) {
-      category.coverImage = req.files.coverImage[0].filename;
-    }
-    if (req.files?.banner) {               // NEW: banner update
-      category.banner = req.files.banner[0].filename;
-    }
+    // Update text fields – use direct assignment, not nullish coalescing for parent
+    if (name !== undefined) category.name = name;
+    if (type !== undefined) category.type = type;
+    category.parent = parentValue; // 👈 Direct assign – works with null
+    if (order !== undefined) category.order = order;
+    if (isFeatured !== undefined) category.isFeatured = isFeatured;
+    if (status !== undefined) category.status = status;
+    if (metaTitle !== undefined) category.metaTitle = metaTitle;
+    if (metaDescription !== undefined) category.metaDescription = metaDescription;
+
+    // Image updates (unchanged)
+    if (req.files?.icon) category.icon = req.files.icon[0].filename;
+    if (req.files?.coverImage) category.coverImage = req.files.coverImage[0].filename;
+    if (req.files?.banner) category.banner = req.files.banner[0].filename;
 
     await category.save();
 
@@ -109,7 +108,6 @@ export const updateCategory = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 // ================= DELETE CATEGORY =================
 export const deleteCategory = async (req, res) => {
   try {

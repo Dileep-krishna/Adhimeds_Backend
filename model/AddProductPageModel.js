@@ -1,5 +1,11 @@
 import mongoose from 'mongoose';
 
+// Sub‑schema for attribute value with pack sizes
+const attributeValueSchema = new mongoose.Schema({
+  value: { type: String, trim: true, required: true },
+  packSizes: [{ type: String, trim: true }]   // array of pack size strings
+}, { _id: false });
+
 const productSchema = new mongoose.Schema(
   {
     // Basic Info
@@ -24,8 +30,8 @@ const productSchema = new mongoose.Schema(
     refundNote: { type: String, default: 'This product is eligible for return within 7 days of delivery.' },
 
     // Files & Media
-    thumbnail: { type: String, default: '' },          // URL or file path
-    galleryImages: [{ type: String }],                 // Array of URLs / paths
+    thumbnail: { type: String, default: '' },
+    galleryImages: [{ type: String }],
 
     // Description
     description: { type: String, default: '' },
@@ -46,10 +52,10 @@ const productSchema = new mongoose.Schema(
     codAvailable: { type: Boolean, default: false },
     codNote: { type: String, default: 'Cash on delivery available for orders within India.' },
 
-    // Price & Stock
+    // Price & Stock – UPDATED attributes structure
     attributes: [{
       name: { type: String, trim: true },
-      values: [{ type: String, trim: true }]
+      values: [attributeValueSchema]   // now an array of objects with value + packSizes
     }],
     unitPrice: { type: Number, min: 0, default: 0 },
     discount: { type: Number, min: 0, default: 0 },
@@ -73,22 +79,22 @@ const productSchema = new mongoose.Schema(
 
     // Frequently Bought Together
     frequentlyBought: [{
-      product: { type: String, trim: true },   // Can be product ID or name – adjust as needed
+      product: { type: String, trim: true },
       category: { type: String, trim: true }
     }]
   },
   {
-    timestamps: true   // adds createdAt & updatedAt
+    timestamps: true
   }
 );
 
-// Optional: indexes for commonly queried fields
+// Optional: indexes
 productSchema.index({ productName: 1 });
 productSchema.index({ mainCategory: 1 });
 productSchema.index({ brand: 1 });
 productSchema.index({ sku: 1 });
 productSchema.index({ barcode: 1 });
-productSchema.index({ published: 1, status: 1 });
+productSchema.index({ published: 1 });
 productSchema.index({ 'attributes.name': 1 });
 
 const Product = mongoose.model('Product', productSchema);

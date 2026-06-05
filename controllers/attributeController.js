@@ -1,10 +1,31 @@
 import mongoose from 'mongoose';
 import Attribute from '../model/Attribute.js';
 
-// Helper function to clean values array
+// Helper function to clean values array (supports both old string[] and new object[] format)
+// packSizes are now stored as an array of strings (trimmed, non-empty)
 const cleanValues = (values) => {
   if (!Array.isArray(values)) return [];
-  return values.map(v => v?.toString().trim()).filter(v => v && v !== '');
+  
+  // Check if it's the old string format
+  if (values.length > 0 && typeof values[0] === 'string') {
+    // Convert each string to object with empty packSizes
+    return values
+      .map(v => (typeof v === 'string' ? v.trim() : ''))
+      .filter(v => v !== '')
+      .map(value => ({ value, packSizes: [] }));
+  }
+  
+  // New format: array of objects { value, packSizes }
+  return values
+    .filter(v => v && typeof v === 'object' && v.value && typeof v.value === 'string' && v.value.trim() !== '')
+    .map(v => ({
+      value: v.value.trim(),
+      packSizes: Array.isArray(v.packSizes) 
+        ? v.packSizes
+            .filter(p => typeof p === 'string' && p.trim() !== '')
+            .map(p => p.trim())
+        : []
+    }));
 };
 
 // @desc    Create a new attribute
@@ -29,7 +50,7 @@ export const createAttribute = async (req, res) => {
       });
     }
 
-    // Clean values (trim and remove empty strings)
+    // Clean values (handles both old and new format)
     const cleanedValues = cleanValues(values);
     if (cleanedValues.length === 0) {
       return res.status(400).json({
@@ -58,7 +79,6 @@ export const createAttribute = async (req, res) => {
   } catch (error) {
     console.error('❌ Error in createAttribute:', error);
     
-    // Handle duplicate key error (just in case the earlier check missed it)
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
@@ -66,7 +86,6 @@ export const createAttribute = async (req, res) => {
       });
     }
     
-    // Handle Mongoose validation errors
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(e => e.message);
       return res.status(400).json({
@@ -75,7 +94,6 @@ export const createAttribute = async (req, res) => {
       });
     }
     
-    // Generic server error
     res.status(500).json({
       success: false,
       message: error.message || 'Server error while creating attribute',
@@ -102,7 +120,6 @@ export const getAttributeById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // If id is not a valid ObjectId, skip to next route (the / route)
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return next('route');
     }

@@ -8,12 +8,7 @@ const categorySchema = new mongoose.Schema(
       trim: true,
     },
 
-    type: {
-      type: String,
-      enum: ["physical", "digital"],
-      default: "physical",
-    },
-
+ 
     parent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
