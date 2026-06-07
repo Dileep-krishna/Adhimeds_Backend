@@ -1,5 +1,7 @@
 // controllers/productController.js
 import Product from '../model/AddProductPageModel.js';
+import StoreProductOverride from '../model/StoreProductOverride.js';
+import MedicalStore from '../model/MedicalstoreManagementModel.js'; // ✅ Add this import
 
 // -------------------------------
 // Helper: parse JSON strings safely
@@ -36,7 +38,22 @@ const toNumber = (value, defaultValue = 0) => {
 };
 
 // -------------------------------
-// 1. CREATE a new product
+// Helper: allowed fields for store overrides (published REMOVED)
+// -------------------------------
+const STORE_OVERRIDE_ALLOWED_FIELDS = [
+  'productName', 'brand', 'mainCategory', 'relatedCategories', 'unit',
+  'weight', 'minPurchaseQty', 'tags', 'featured', 'todaysDeal',
+  'flashTitle', 'refundable', 'refundNote', 'thumbnail', 'galleryImages',
+  'description', 'metaTitle', 'metaDescription', 'metaImage', 'freeShipping',
+  'flatRate', 'quantityMultiply', 'shippingDays', 'shippingNote', 'codAvailable',
+  'codNote', 'unitPrice', 'discount', 'discountType', 'discountStartDate',
+  'discountEndDate', 'stock', 'sku', 'barcode', 'hsnCode', 'gstRate', 'hideStock',
+  'lowStockWarning', 'quantity', 'frequentlyBought', 'attributes', 'colorsEnabled',
+  'selectedColors', 'variants'
+];
+
+// -------------------------------
+// 1. CREATE a new product (super‑admin only – no storeId)
 // -------------------------------
 export const addProduct = async (req, res) => {
   try {
@@ -87,13 +104,11 @@ export const addProduct = async (req, res) => {
       frequentlyBought,
     } = req.body;
 
-    // Parse array fields
     relatedCategories = parseJsonField(relatedCategories);
     tags = parseJsonField(tags);
     attributes = parseJsonField(attributes);
     frequentlyBought = parseJsonField(frequentlyBought);
 
-    // Validate mandatory fields
     const missingFields = [];
     if (!productName?.trim()) missingFields.push('productName');
     if (!mainCategory?.trim()) missingFields.push('mainCategory');
@@ -110,7 +125,6 @@ export const addProduct = async (req, res) => {
       });
     }
 
-    // Build product object
     const productData = {
       productName: productName.trim(),
       mainCategory: mainCategory.trim(),
@@ -182,7 +196,7 @@ export const addProduct = async (req, res) => {
 };
 
 // -------------------------------
-// 2. GET all products (fast pagination, lean)
+// 2. GET all products (super‑admin only – no storeId)
 // -------------------------------
 export const getAllProducts = async (req, res) => {
   try {
@@ -201,9 +215,7 @@ export const getAllProducts = async (req, res) => {
         { barcode: { $regex: search, $options: 'i' } },
       ];
     }
-    if (category) {
-      filter.mainCategory = { $regex: new RegExp(`^${category}$`, 'i') };
-    }
+    if (category) filter.mainCategory = { $regex: new RegExp(`^${category}$`, 'i') };
     if (published !== undefined) filter.published = published === 'true';
     if (featured !== undefined) filter.featured = featured === 'true';
     if (minPrice || maxPrice) {
@@ -240,7 +252,7 @@ export const getAllProducts = async (req, res) => {
 };
 
 // -------------------------------
-// 3. GET a single product by ID
+// 3. GET a single product (super‑admin only – no storeId)
 // -------------------------------
 export const getProductById = async (req, res) => {
   try {
@@ -264,7 +276,7 @@ export const getProductById = async (req, res) => {
 };
 
 // -------------------------------
-// 4. UPDATE a product by ID (fast, with new attribute structure)
+// 4. UPDATE a product (super‑admin only – no storeId)
 // -------------------------------
 export const updateProduct = async (req, res) => {
   try {
@@ -275,17 +287,14 @@ export const updateProduct = async (req, res) => {
 
     let updateData = { ...req.body };
 
-    // Handle file uploads
     if (req.files?.thumbnail?.[0]?.filename) updateData.thumbnail = req.files.thumbnail[0].filename;
     if (req.files?.metaImage?.[0]?.filename) updateData.metaImage = req.files.metaImage[0].filename;
     if (req.files?.galleryImages?.length) updateData.galleryImages = req.files.galleryImages.map(f => f.filename);
 
-    // Remove immutable fields
     delete updateData._id;
     delete updateData.createdAt;
     delete updateData.updatedAt;
 
-    // Parse JSON array fields
     const arrayFields = ['relatedCategories', 'tags', 'attributes', 'frequentlyBought'];
     arrayFields.forEach(field => {
       if (typeof updateData[field] === 'string') {
@@ -297,7 +306,6 @@ export const updateProduct = async (req, res) => {
       }
     });
 
-    // Convert boolean strings
     const boolFields = ['published', 'featured', 'todaysDeal', 'refundable', 'freeShipping', 'flatRate', 'quantityMultiply', 'codAvailable'];
     boolFields.forEach(field => {
       if (updateData[field] !== undefined) {
@@ -305,7 +313,6 @@ export const updateProduct = async (req, res) => {
       }
     });
 
-    // Convert numeric strings
     const numFields = ['weight', 'minPurchaseQty', 'unitPrice', 'discount', 'stock', 'lowStockWarning', 'quantity', 'gstRate'];
     numFields.forEach(field => {
       if (updateData[field] !== undefined) {
@@ -313,7 +320,6 @@ export const updateProduct = async (req, res) => {
       }
     });
 
-    // Normalize attributes to the new {value, packSizes} structure
     if (updateData.attributes && Array.isArray(updateData.attributes)) {
       updateData.attributes = updateData.attributes.map(attr => ({
         name: attr.name,
@@ -352,7 +358,7 @@ export const updateProduct = async (req, res) => {
 };
 
 // -------------------------------
-// 5. DELETE a product by ID
+// 5. DELETE a product (super‑admin only – no storeId)
 // -------------------------------
 export const deleteProduct = async (req, res) => {
   try {
@@ -366,6 +372,9 @@ export const deleteProduct = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
+    // Also delete any store overrides for this product
+    await StoreProductOverride.deleteMany({ productId: id });
+
     res.status(200).json({
       success: true,
       message: 'Product deleted successfully',
@@ -378,5 +387,162 @@ export const deleteProduct = async (req, res) => {
       message: 'Server error while deleting product',
       error: error.message,
     });
+  }
+};
+
+// -------------------------------
+// STORE PRODUCT OVERRIDE CONTROLLERS
+// -------------------------------
+
+export const getStoreProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { storeId } = req.query;
+    if (!storeId) {
+      return res.status(400).json({ success: false, message: 'storeId query parameter is required' });
+    }
+    const master = await Product.findById(id).lean();
+    if (!master) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+    const override = await StoreProductOverride.findOne({ storeId, productId: id }).lean();
+    const merged = { ...master, ...(override?.overrides || {}), published: master.published };
+    res.status(200).json({ success: true, data: merged });
+  } catch (error) {
+    console.error('Error in getStoreProduct:', error);
+    res.status(500).json({ success: false, message: 'Server error while fetching store product' });
+  }
+};
+
+export const updateStoreProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { storeId } = req.query;
+    if (!storeId) {
+      return res.status(400).json({ success: false, message: 'storeId query parameter is required' });
+    }
+    const updates = req.body;
+    const overrides = {};
+    for (const field of STORE_OVERRIDE_ALLOWED_FIELDS) {
+      if (updates[field] !== undefined) overrides[field] = updates[field];
+    }
+    if (Object.keys(overrides).length === 0) {
+      return res.status(400).json({ success: false, message: 'No valid fields to update' });
+    }
+    await StoreProductOverride.findOneAndUpdate(
+      { storeId, productId: id },
+      { $set: { overrides } },
+      { upsert: true, new: true }
+    );
+    const master = await Product.findById(id).lean();
+    const updatedOverride = await StoreProductOverride.findOne({ storeId, productId: id }).lean();
+    const merged = { ...master, ...(updatedOverride?.overrides || {}), published: master.published };
+    res.status(200).json({
+      success: true,
+      message: 'Store product updated successfully',
+      data: merged,
+    });
+  } catch (error) {
+    console.error('Error in updateStoreProduct:', error);
+    res.status(500).json({ success: false, message: 'Server error while updating store product' });
+  }
+};
+
+export const deleteStoreOverride = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { storeId } = req.query;
+    if (!storeId) {
+      return res.status(400).json({ success: false, message: 'storeId query parameter is required' });
+    }
+    const result = await StoreProductOverride.findOneAndDelete({ storeId, productId: id });
+    if (!result) {
+      return res.status(404).json({ success: false, message: 'No override found for this product and store' });
+    }
+    res.status(200).json({ success: true, message: 'Store override deleted. Product reverted to master.' });
+  } catch (error) {
+    console.error('Error in deleteStoreOverride:', error);
+    res.status(500).json({ success: false, message: 'Server error while deleting store override' });
+  }
+};
+
+export const getAllStoreProducts = async (req, res) => {
+  try {
+    const { storeId } = req.query;
+    if (!storeId) return res.status(400).json({ success: false, message: 'storeId required' });
+
+    // 👇 Only overrides with enabled: true
+    const enabledOverrides = await StoreProductOverride.find({ storeId, enabled: true }).lean();
+    const productIds = enabledOverrides.map(o => o.productId);
+    const masters = await Product.find({ _id: { $in: productIds } }).lean();
+
+    const overrideMap = {};
+    enabledOverrides.forEach(ov => {
+      overrideMap[ov.productId.toString()] = ov.overrides;
+    });
+
+    const merged = masters.map(master => ({
+      ...master,
+      ...(overrideMap[master._id.toString()] || {}),
+      published: master.published,
+    }));
+
+    res.json({ success: true, data: merged });
+  } catch (error) {
+    console.error('Error in getAllStoreProducts:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const toggleProductAccessForStore = async (req, res) => {
+  try {
+    const { productId, storeId } = req.params;
+    const { enabled } = req.body;
+    const override = await StoreProductOverride.findOneAndUpdate(
+      { storeId, productId },
+      { $set: { enabled } },
+      { upsert: true, new: true }
+    );
+    res.json({
+      success: true,
+      message: `Product ${enabled ? 'enabled' : 'disabled'} for store`,
+      data: override,
+    });
+  } catch (error) {
+    console.error('Error in toggleProductAccessForStore:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getCurrentStore = async (req, res) => {
+  try {
+    const storeId = req.user?.storeId;
+    if (!storeId) return res.status(401).json({ success: false, message: 'Not authenticated' });
+    res.json({ success: true, storeId });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ================= NEW: Get store by email =================
+export const getStoreByEmail = async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email query parameter is required' });
+    }
+    const store = await MedicalStore.findOne({ emailAddress: email.toLowerCase() }).lean();
+    if (!store) {
+      return res.status(404).json({ success: false, message: 'No store found with this email' });
+    }
+    res.json({
+      success: true,
+      storeId: store._id,
+      storeName: store.storeName,
+      email: store.emailAddress
+    });
+  } catch (error) {
+    console.error('Error in getStoreByEmail:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
