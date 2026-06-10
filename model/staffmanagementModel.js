@@ -1,6 +1,24 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 
+// List of all Kerala districts
+const KERALA_DISTRICTS = [
+  'Alappuzha',
+  'Ernakulam',
+  'Idukki',
+  'Kannur',
+  'Kasaragod',
+  'Kollam',
+  'Kottayam',
+  'Kozhikode',
+  'Malappuram',
+  'Palakkad',
+  'Pathanamthitta',
+  'Thiruvananthapuram',
+  'Thrissur',
+  'Wayanad'
+];
+
 const staffMemberSchema = new mongoose.Schema(
   {
     fullName: {
@@ -42,6 +60,15 @@ const staffMemberSchema = new mongoose.Schema(
       ref: 'MedicalStore',
       required: false,
     },
+    district: {
+      type: String,
+      required: [true, 'District is required'],
+      enum: {
+        values: KERALA_DISTRICTS,
+        message: '{VALUE} is not a valid district in Kerala'
+      },
+      trim: true,
+    },
     status: {
       type: String,
       enum: ['active', 'inactive', 'pending'],
@@ -54,8 +81,9 @@ const staffMemberSchema = new mongoose.Schema(
 // Indexes
 staffMemberSchema.index({ storeId: 1 });
 staffMemberSchema.index({ status: 1 });
+staffMemberSchema.index({ district: 1 });
 
-// ✅ Correct pre-save hook using async/await without `next`
+// Correct pre-save hook using async/await without `next`
 staffMemberSchema.pre('save', async function() {
   // Only hash the password if it has been modified (or is new)
   if (!this.isModified('password')) return;

@@ -3,6 +3,13 @@ import mongoose from 'mongoose';
 import StaffMember from '../model/staffmanagementModel.js';
 import Role from '../model/Role.js';
 
+// List of all Kerala districts (must match schema enum)
+const KERALA_DISTRICTS = [
+  'Alappuzha', 'Ernakulam', 'Idukki', 'Kannur', 'Kasaragod', 'Kollam',
+  'Kottayam', 'Kozhikode', 'Malappuram', 'Palakkad', 'Pathanamthitta',
+  'Thiruvananthapuram', 'Thrissur', 'Wayanad'
+];
+
 // Helper functions
 const isValidEmail = (email) => /^\S+@\S+\.\S+$/.test(email);
 const isValidPhone = (phone) => /^\+?[0-9\s\-\(\)]{10,15}$/.test(phone);
@@ -22,10 +29,10 @@ const getRoleIdByName = async (roleName) => {
 // -------------------------------
 export const addStaff = async (req, res) => {
   try {
-    const { fullName, phone, joiningDate, email, role, storeId, status, password } = req.body;
+    const { fullName, phone, joiningDate, email, role, storeId, status, password, district } = req.body;
 
-    // Required fields
-    const requiredFields = ['fullName', 'phone', 'email', 'role', 'password'];
+    // Required fields – added district
+    const requiredFields = ['fullName', 'phone', 'email', 'role', 'password', 'district'];
     const missing = requiredFields.filter(field => !req.body[field]);
     if (missing.length) {
       return res.status(400).json({ success: false, message: `Missing: ${missing.join(', ')}` });
@@ -40,6 +47,11 @@ export const addStaff = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid phone' });
     if (!password || password.length < 6)
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+
+    // District validation
+    if (!KERALA_DISTRICTS.includes(district)) {
+      return res.status(400).json({ success: false, message: `Invalid district. Must be one of: ${KERALA_DISTRICTS.join(', ')}` });
+    }
 
     // Role name → ObjectId
     const roleId = await getRoleIdByName(role);
@@ -74,11 +86,11 @@ export const addStaff = async (req, res) => {
       storeId: storeId || null,
       status: finalStatus,
       password,
+      district: district.trim(),
     });
 
     const saved = await newStaff.save();
 
-    // ✅ Correct population and password removal
     await saved.populate('role', 'name');
     const staffData = saved.toObject();
     delete staffData.password;
@@ -93,11 +105,11 @@ export const addStaff = async (req, res) => {
 };
 
 // -------------------------------
-// 2. GET all staff (filters, pagination)
+// 2. GET all staff (filters, pagination) – added district filter
 // -------------------------------
 export const getAllStaff = async (req, res) => {
   try {
-    let { role, storeId, status, search, page = 1, limit = 10 } = req.query;
+    let { role, storeId, status, search, district, page = 1, limit = 10 } = req.query;
     page = parseInt(page) || 1;
     limit = Math.min(parseInt(limit) || 10, 100);
     const filter = {};
@@ -110,6 +122,7 @@ export const getAllStaff = async (req, res) => {
     }
     if (storeId && isValidObjectId(storeId)) filter.storeId = storeId;
     if (status && allowedStatuses.includes(status)) filter.status = status;
+    if (district && KERALA_DISTRICTS.includes(district)) filter.district = district;
 
     if (search && typeof search === 'string') {
       const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -178,7 +191,7 @@ export const updateStaff = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid staff ID' });
 
     const updateData = req.body;
-    const allowedUpdates = ['fullName', 'phone', 'joiningDate', 'email', 'role', 'storeId', 'status', 'password'];
+    const allowedUpdates = ['fullName', 'phone', 'joiningDate', 'email', 'role', 'storeId', 'status', 'password', 'district'];
     const filtered = {};
 
     for (const key of allowedUpdates) {
@@ -223,6 +236,11 @@ export const updateStaff = async (req, res) => {
           if (updateData.password && updateData.password.length < 6)
             return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
           filtered.password = updateData.password;
+        }
+        if (key === 'district') {
+          if (!KERALA_DISTRICTS.includes(updateData.district))
+            return res.status(400).json({ success: false, message: `Invalid district. Must be one of: ${KERALA_DISTRICTS.join(', ')}` });
+          filtered.district = updateData.district.trim();
         }
       }
     }
@@ -271,4 +289,11 @@ export const deleteStaff = async (req, res) => {
     console.error('Error deleting staff:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
+};
+// Get all Kerala districts
+export const getAllDistricts = (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: KERALA_DISTRICTS
+  });
 };

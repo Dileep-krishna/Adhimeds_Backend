@@ -20,7 +20,7 @@ import {
   createCategory,
 } from "./controllers/categoryManagmentController.js";
 import { addMedicalStore, deleteMedicalStore, getAllMedicalStores, getMedicalStoreById, updateMedicalStore } from "./controllers/MedicalstoreManagementController.js";
-import { addStaff, deleteStaff, getAllStaff, getStaffById, updateStaff } from "./controllers/staffmanagementController.js";
+import { addStaff, deleteStaff, getAllDistricts, getAllStaff, getStaffById, updateStaff } from "./controllers/staffmanagementController.js";
 import { createRole, deleteRole, getAllRoles, getRoleById, updateRole, updateRolePermissions } from "./controllers/roleController.js";
 import { 
   addProduct, 
@@ -122,6 +122,8 @@ router.get('/staff', getAllStaff);
 router.get('/staff/:id', getStaffById);
 router.put('/staff/:id', updateStaff);
 router.delete('/staff/:id', deleteStaff);
+// 👇 NEW: District list endpoint
+router.get('/districts', getAllDistricts);
 
 // ================= PERMISSION ROUTES =================
 router.get('/roles', getAllRoles);
