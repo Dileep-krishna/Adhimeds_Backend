@@ -83,7 +83,7 @@ staffMemberSchema.index({ storeId: 1 });
 staffMemberSchema.index({ status: 1 });
 staffMemberSchema.index({ district: 1 });
 
-// Correct pre-save hook using async/await without `next`
+// Pre-save hook for new documents and save() calls
 staffMemberSchema.pre('save', async function() {
   // Only hash the password if it has been modified (or is new)
   if (!this.isModified('password')) return;
@@ -91,6 +91,50 @@ staffMemberSchema.pre('save', async function() {
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
+
+// Pre-update middleware for findOneAndUpdate
+staffMemberSchema.pre('findOneAndUpdate', async function() {
+  const update = this.getUpdate();
+  
+  // Check if password is being updated directly
+  if (update.password) {
+    const salt = await bcrypt.genSalt(10);
+    update.password = await bcrypt.hash(update.password, salt);
+    this.setUpdate(update);
+  }
+  
+  // Check for $set operator (when using { $set: { password: 'newPass' } })
+  if (update.$set && update.$set.password) {
+    const salt = await bcrypt.genSalt(10);
+    update.$set.password = await bcrypt.hash(update.$set.password, salt);
+    this.setUpdate(update);
+  }
+});
+
+// Pre-update middleware for updateOne
+staffMemberSchema.pre('updateOne', async function() {
+  const update = this.getUpdate();
+  
+  // Check if password is being updated directly
+  if (update.password) {
+    const salt = await bcrypt.genSalt(10);
+    update.password = await bcrypt.hash(update.password, salt);
+    this.setUpdate(update);
+  }
+  
+  // Check for $set operator
+  if (update.$set && update.$set.password) {
+    const salt = await bcrypt.genSalt(10);
+    update.$set.password = await bcrypt.hash(update.$set.password, salt);
+    this.setUpdate(update);
+  }
+});
+
+// Static method to hash password (for manual updates)
+staffMemberSchema.statics.hashPassword = async function(password) {
+  const salt = await bcrypt.genSalt(10);
+  return await bcrypt.hash(password, salt);
+};
 
 // Compare password method
 staffMemberSchema.methods.comparePassword = async function (candidatePassword) {

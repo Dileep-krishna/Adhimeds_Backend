@@ -1,4 +1,4 @@
-import StaffMember from '../model/staffmanagementModel.js';   // ← correct model
+import StaffMember from '../model/staffmanagementModel.js';
 import jwt from 'jsonwebtoken';
 
 export const staffLogin = async (req, res) => {
@@ -15,8 +15,9 @@ export const staffLogin = async (req, res) => {
 
     console.log(`🔍 Looking for staff with email: "${email}" (lowercase query)`);
     
-    // Use StaffMember (the model for admin-created staff)
-    const staff = await StaffMember.findOne({ email: email.toLowerCase() }).select('+password');
+    // Populate the role field to get the role name
+    const staff = await StaffMember.findOne({ email: email.toLowerCase() })
+      .populate('role', 'name'); // This populates the role with its name
     
     if (!staff) {
       console.warn(`❌ No staff found with email: ${email}`);
@@ -24,9 +25,8 @@ export const staffLogin = async (req, res) => {
     }
     
     console.log(`✅ Staff found: ${staff.fullName} (ID: ${staff._id})`);
-    console.log(`   - Role: ${staff.role} (type: ${typeof staff.role})`);
+    console.log(`   - Role: ${staff.role?.name || staff.role} (type: ${typeof staff.role})`);
     console.log(`   - Status: ${staff.status}`);
-    console.log(`   - District: ${staff.district}`);
     console.log(`   - Has password hash: ${!!staff.password}`);
 
     if (staff.status !== 'active') {
@@ -43,21 +43,14 @@ export const staffLogin = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Resolve role name if role is an ObjectId reference
-    let roleName = staff.role;
-    if (staff.role && typeof staff.role === 'object' && staff.role.name) {
-      roleName = staff.role.name;
-      console.log(`   Role resolved from populated object: ${roleName}`);
-    } else if (typeof staff.role === 'string') {
-      roleName = staff.role;
-      console.log(`   Role is string: ${roleName}`);
-    }
+    // Get role name from populated field or fallback
+    const roleName = staff.role?.name || staff.role;
+    console.log(`   Role resolved: ${roleName}`);
 
     const tokenPayload = {
       id: staff._id,
       role: roleName,
       fullName: staff.fullName,
-      district: staff.district,
     };
     console.log('📝 JWT payload:', tokenPayload);
 
@@ -71,14 +64,15 @@ export const staffLogin = async (req, res) => {
     console.log(`🎉 Staff login successful: ${staff.fullName} (${staff.email})`);
     console.log('==========================================\n');
 
+    // Return response without district field
     res.status(200).json({
       success: true,
       data: {
         token,
-        role: roleName,
+        role: roleName, // Now returns role name like "PHARMACIST", not ObjectId
         fullName: staff.fullName,
         _id: staff._id,
-        district: staff.district,
+        // district removed from response
       },
     });
   } catch (error) {
