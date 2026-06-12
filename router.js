@@ -46,6 +46,7 @@ import { createCustomReview, deleteCustomReview, getAllCustomReviews, getCustomR
 import { adminLogin } from "./controllers/authController.js";
 import { storeLogin } from "./controllers/storeAuthController.js";
 import { verifyStoreToken } from "./middlewares/jwtMiddleware.js";
+import { staffLogin } from "./controllers/StaffLoginController.js";
 
 const router = express.Router();
 
@@ -214,5 +215,7 @@ router.get("/store/products/:id", getStoreProduct);
 router.put("/store/products/:id", updateStoreProduct);
 router.delete("/store/products/:id/override", deleteStoreOverride);
 router.put('/store/product-access/:productId/:storeId', toggleProductAccessForStore);
+// ==============staff-login==================
+router.post('/staff/login', staffLogin);
 
 export default router;
