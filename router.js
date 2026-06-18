@@ -47,6 +47,7 @@ import { adminLogin } from "./controllers/authController.js";
 import { storeLogin } from "./controllers/storeAuthController.js";
 import { verifyStoreToken } from "./middlewares/jwtMiddleware.js";
 import { staffLogin } from "./controllers/StaffLoginController.js";
+import { createOrder,  deleteItemFromOrder,  getAllOrders, getOrderById, updateItemStatus, } from "./controllers/orderController.js";
 
 const router = express.Router();
 
@@ -217,5 +218,10 @@ router.delete("/store/products/:id/override", deleteStoreOverride);
 router.put('/store/product-access/:productId/:storeId', toggleProductAccessForStore);
 // ==============staff-login==================
 router.post('/staff/login', staffLogin);
-
+// ==============orders==================
+router.post('/orders', createOrder);
+router.get('/orders', getAllOrders);
+router.get('/orders/:id', getOrderById);
+router.put('/orders/:orderId/items/:itemId', updateItemStatus);
+router.delete('/orders/:orderId/items/:itemId', deleteItemFromOrder);
 export default router;
