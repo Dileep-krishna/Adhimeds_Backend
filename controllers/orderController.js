@@ -25,11 +25,27 @@ export const createOrder = async (req, res) => {
     const order = new Order({
       items,
       total,
-      status: 'pending', // overall order status (optional)
+      status: 'pending',
     });
 
     await order.save();
     console.log("✅ Order created with ID:", order._id);
+
+    // ─── EMIT REAL-TIME EVENT ──────────────────────────────────────────
+    const io = req.app.get('io');
+    console.log("🔍 io instance from app:", io ? "FOUND" : "NOT FOUND");
+
+    if (io) {
+      console.log("📡 Emitting 'new_order' event with payload:", { orderId: order._id, order });
+      io.emit('new_order', {
+        orderId: order._id,
+        order: order,
+      });
+      console.log("✅ Event emitted successfully");
+    } else {
+      console.warn("⚠️ io not found – skipping emit");
+    }
+    // ────────────────────────────────────────────────────────────────────
 
     res.status(201).json({
       success: true,

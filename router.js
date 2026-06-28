@@ -48,6 +48,7 @@ import { storeLogin } from "./controllers/storeAuthController.js";
 import { verifyStoreToken } from "./middlewares/jwtMiddleware.js";
 import { staffLogin } from "./controllers/StaffLoginController.js";
 import { createOrder,  deleteItemFromOrder,  getAllOrders, getOrderById, updateItemStatus, } from "./controllers/orderController.js";
+import {  createNotification, deleteAllNotifications, getNotifications, markNotificationRead } from "./controllers/notificationController.js";
 
 const router = express.Router();
 
@@ -225,3 +226,21 @@ router.get('/orders/:id', getOrderById);
 router.put('/orders/:orderId/items/:itemId', updateItemStatus);
 router.delete('/orders/:orderId/items/:itemId', deleteItemFromOrder);
 export default router;
+// ==============Notification==================
+router.post('/notifications', createNotification);
+router.get('/notifications', getNotifications);
+router.put('/notifications/:id', markNotificationRead);
+router.delete('/notifications', deleteAllNotifications);
+
+router.get('/test-emit', (req, res) => {
+  const io = req.app.get('io');
+  if (io) {
+    io.emit('new_order', {
+      orderId: 'test-123',
+      order: { items: [{ status: 'pending', _id: 'item1', productName: 'Test Product' }] }
+    });
+    res.send('Event emitted');
+  } else {
+    res.status(500).send('io not found');
+  }
+});
