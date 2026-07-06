@@ -2,22 +2,20 @@
 import MedicalStore from '../model/MedicalstoreManagementModel.js';
 import bcrypt from 'bcrypt';
 
-// In medicalStoreController.js
-
-// ✅ Corrected helper – matches static route "/imgUploads"
+// ✅ Helper – matches static route "/imgUploads"
 const getFileUrls = (files) => {
   if (!files || files.length === 0) return [];
   return files.map(file => `/imgUploads/${file.filename}`);
 };
 
-// The rest of your controller (addMedicalStore, updateMedicalStore, etc.) remains the same.
 // ---------------------------
-// 1. ADD a new medical store
+// 1. ADD a new medical store (with shopid)
 // ---------------------------
 export const addMedicalStore = async (req, res) => {
   try {
     const {
       storeName,
+      shopid,                 // ✅ NEW: Medisoft shop ID
       latitude,
       longitude,
       searchLocation,
@@ -58,6 +56,7 @@ export const addMedicalStore = async (req, res) => {
 
     const newStore = new MedicalStore({
       storeName: storeName.trim(),
+      shopid: shopid?.trim() || '',          // ✅ Save shopid if provided
       latitude: lat,
       longitude: lng,
       searchLocation: searchLocation?.trim() || '',
@@ -83,16 +82,26 @@ export const addMedicalStore = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
+
 // ---------------------------
-// 2. EDIT (update) an existing store
+// 2. EDIT (update) an existing store (with shopid)
+// ---------------------------
+// controllers/medicalStoreController.js
+
+// ... (other functions remain the same)
+
+// ---------------------------
+// 2. EDIT (update) an existing store (with shopid)
 // ---------------------------
 export const updateMedicalStore = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
 
+    // ✅ Allow 'shopid' to be updated
     const allowedUpdates = [
       'storeName',
+      'shopid',                // ✅ ADD THIS
       'searchLocation',
       'latitude',
       'longitude',
@@ -106,7 +115,7 @@ export const updateMedicalStore = async (req, res) => {
       'gstNumber',
       'contactNumber',
       'pharmacistName',
-      'password', // allow password update (will be hashed)
+      'password',
     ];
 
     const filteredUpdates = {};
@@ -160,7 +169,7 @@ export const deleteMedicalStore = async (req, res) => {
 };
 
 // ---------------------------
-// 4. GET all stores (unchanged – filter/pagination works with new fields automatically)
+// 4. GET all stores (unchanged)
 // ---------------------------
 export const getAllMedicalStores = async (req, res) => {
   try {
@@ -200,7 +209,7 @@ export const getAllMedicalStores = async (req, res) => {
 };
 
 // ---------------------------
-// 5. GET a single store by ID (unchanged, but filter out password)
+// 5. GET a single store by ID (unchanged)
 // ---------------------------
 export const getMedicalStoreById = async (req, res) => {
   try {

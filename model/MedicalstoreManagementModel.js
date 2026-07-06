@@ -75,6 +75,13 @@ const medicalStoreSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+
+    // ✅ NEW: Medisoft Shop ID
+    shopid: {
+      type: String,
+      default: '',
+      trim: true,
+    },
   },
   {
     timestamps: true,

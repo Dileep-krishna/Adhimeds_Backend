@@ -16,8 +16,9 @@ const storeSchema = new mongoose.Schema(
     gstNumber: { type: String, required: true },
     contactNumber: { type: String, required: true, match: /^\d{10}$/ },
     pharmacistName: { type: String, required: true },
-    thumbnailImages: [{ type: String }], // file paths or URLs
+    thumbnailImages: [{ type: String }],
     status: { type: String, enum: ['pending', 'active', 'inactive'], default: 'pending' },
+    shopid: { type: String, default: '' }, // ✅ Medisoft shop ID
   },
   { timestamps: true }
 );

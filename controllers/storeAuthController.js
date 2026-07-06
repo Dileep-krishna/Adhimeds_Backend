@@ -1,5 +1,5 @@
 import Store from '../model/StoreLogin.js';
-import MedicalStore from '../model/MedicalstoreManagementModel.js'; // Add this import – adjust path if needed
+import MedicalStore from '../model/MedicalstoreManagementModel.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -37,14 +37,14 @@ export const storeLogin = async (req, res) => {
     console.log(`✅ Store found in ${storeType}`);
     console.log('   Store name:', store.storeName);
     console.log('   Status:', store.status);
+    console.log('   shopid:', store.shopid || 'Not set');
     console.log('   Password hash (first 10 chars):', store.password ? store.password.substring(0, 10) : 'MISSING');
 
-    // 3. Compare password (handle both hashed and plain text gracefully)
+    // 3. Compare password
     let isMatch = false;
     if (store.password.startsWith('$2a$') || store.password.startsWith('$2b$')) {
       isMatch = await bcrypt.compare(password, store.password);
     } else {
-      // If password is not hashed (e.g., plain text), compare directly – but warn
       console.warn('⚠️ Password stored in plain text! Please re‑save the store to hash it.');
       isMatch = (password === store.password);
     }
@@ -54,18 +54,19 @@ export const storeLogin = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // 4. Check status (both models use 'status' field)
+    // 4. Check status
     if (store.status !== 'active') {
       console.log(`❌ Status is '${store.status}', expected 'active'`);
       return res.status(403).json({ success: false, message: 'Your account is not active. Contact admin.' });
     }
 
-    // 5. Generate JWT token
+    // 5. Generate JWT token – include shopid
     const token = jwt.sign(
       {
         id: store._id,
         email: store.emailAddress,
         storeName: store.storeName,
+        shopid: store.shopid || '',
         role: 'store',
         source: storeType
       },
@@ -73,11 +74,12 @@ export const storeLogin = async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    // 6. Return success
+    // 6. Return success – include shopid in response
     console.log('🎉 Login successful!');
     res.status(200).json({
       success: true,
       storeId: store._id,
+      shopid: store.shopid || '',     // ✅ Medisoft shop ID (or empty)
       storeName: store.storeName,
       email: store.emailAddress,
       token,

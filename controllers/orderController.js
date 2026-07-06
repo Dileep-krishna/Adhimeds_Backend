@@ -96,11 +96,34 @@ export const getOrderById = async (req, res) => {
 // @desc    Update a single item's status inside an order
 // @route   PUT /api/orders/:orderId/items/:itemId
 // @access  Public
+// @desc    Update a single item's status inside an order
+// @route   PUT /api/orders/:orderId/items/:itemId
+// @access  Public
+// @desc    Update a single item's status inside an order
+// @route   PUT /api/orders/:orderId/items/:itemId
+// @access  Public
+// controllers/orderController.js
+
+// @desc    Update a single item's status inside an order
+// @route   PUT /api/orders/:orderId/items/:itemId
+// @access  Public
+// @desc    Update a single item's status inside an order
+// @route   PUT /api/orders/:orderId/items/:itemId
+// @access  Public
+// @desc    Update a single item's status inside an order
+// @route   PUT /api/orders/:orderId/items/:itemId
+// @access  Public
 export const updateItemStatus = async (req, res) => {
   const { orderId, itemId } = req.params;
-  const { status } = req.body;
+  const { status, assignedTo } = req.body;
 
-  const validStatuses = ['pending', 'processing', 'completed', 'cancelled'];
+  console.log("📥 updateItemStatus called");
+  console.log("   orderId:", orderId);
+  console.log("   itemId:", itemId);
+  console.log("   req.body:", req.body);
+  console.log("   assignedTo:", assignedTo);
+
+  const validStatuses = ['pending', 'processing', 'completed', 'cancelled', 'assigned'];
   if (!status || !validStatuses.includes(status)) {
     return res.status(400).json({ success: false, message: 'Invalid status' });
   }
@@ -116,8 +139,19 @@ export const updateItemStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Item not found' });
     }
 
+    // ✅ Update status
     item.status = status;
+    
+    // ✅ Update assignedTo ONLY if it's provided
+    if (assignedTo !== undefined) {
+      console.log("✅ Setting assignedTo to:", assignedTo);
+      item.assignedTo = assignedTo;
+    } else {
+      console.log("⚠️ assignedTo is undefined – not setting");
+    }
+
     await order.save();
+    console.log("✅ Order saved. Item assignedTo:", item.assignedTo);
 
     res.json({ success: true, data: order, message: 'Item status updated' });
   } catch (error) {

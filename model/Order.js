@@ -18,17 +18,22 @@ const OrderSchema = new mongoose.Schema(
         pack: String,
         scheme: String,
         gst: String,
-        status: {                              // ✅ New per‑item status
+        status: {
           type: String,
-          enum: ['pending', 'processing', 'completed', 'cancelled'],
+          enum: ['pending', 'processing', 'completed', 'cancelled', 'assigned'],
           default: 'pending',
+        },
+        // ✅ ADD THIS: Store which delivery boy is assigned
+        assignedTo: {
+          type: String,
+          default: '',
         },
       },
     ],
     total: Number,
-    status: {                                 // Overall order status (optional)
+    status: {
       type: String,
-      enum: ['pending', 'processing', 'completed', 'cancelled'],
+      enum: ['pending', 'processing', 'completed', 'cancelled', 'assigned'],
       default: 'pending',
     },
   },
