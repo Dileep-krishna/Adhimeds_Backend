@@ -9,13 +9,13 @@ const getFileUrls = (files) => {
 };
 
 // ---------------------------
-// 1. ADD a new medical store (with shopid)
+// 1. ADD a new medical store
 // ---------------------------
 export const addMedicalStore = async (req, res) => {
   try {
     const {
       storeName,
-      shopid,                 // ✅ NEW: Medisoft shop ID
+      shopid,
       latitude,
       longitude,
       searchLocation,
@@ -29,6 +29,7 @@ export const addMedicalStore = async (req, res) => {
       gstNumber,
       contactNumber,
       pharmacistName,
+      district,                 // ✅ NEW: district from frontend
     } = req.body;
 
     // --- Required fields validation ---
@@ -56,7 +57,7 @@ export const addMedicalStore = async (req, res) => {
 
     const newStore = new MedicalStore({
       storeName: storeName.trim(),
-      shopid: shopid?.trim() || '',          // ✅ Save shopid if provided
+      shopid: shopid?.trim() || '',
       latitude: lat,
       longitude: lng,
       searchLocation: searchLocation?.trim() || '',
@@ -71,6 +72,7 @@ export const addMedicalStore = async (req, res) => {
       contactNumber: contactNumber?.trim() || undefined,
       pharmacistName: pharmacistName?.trim() || undefined,
       thumbnailImages: thumbnailUrls,
+      district: district?.trim() || '',     // ✅ NEW: save district
     });
 
     const savedStore = await newStore.save();
@@ -84,24 +86,17 @@ export const addMedicalStore = async (req, res) => {
 };
 
 // ---------------------------
-// 2. EDIT (update) an existing store (with shopid)
-// ---------------------------
-// controllers/medicalStoreController.js
-
-// ... (other functions remain the same)
-
-// ---------------------------
-// 2. EDIT (update) an existing store (with shopid)
+// 2. EDIT (update) an existing store
 // ---------------------------
 export const updateMedicalStore = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
 
-    // ✅ Allow 'shopid' to be updated
+    // ✅ Allow district to be updated
     const allowedUpdates = [
       'storeName',
-      'shopid',                // ✅ ADD THIS
+      'shopid',
       'searchLocation',
       'latitude',
       'longitude',
@@ -116,6 +111,7 @@ export const updateMedicalStore = async (req, res) => {
       'contactNumber',
       'pharmacistName',
       'password',
+      'district',                // ✅ NEW: district allowed
     ];
 
     const filteredUpdates = {};
@@ -150,7 +146,7 @@ export const updateMedicalStore = async (req, res) => {
 };
 
 // ---------------------------
-// 3. DELETE a medical store (unchanged)
+// 3. DELETE a medical store
 // ---------------------------
 export const deleteMedicalStore = async (req, res) => {
   try {
@@ -169,7 +165,7 @@ export const deleteMedicalStore = async (req, res) => {
 };
 
 // ---------------------------
-// 4. GET all stores (unchanged)
+// 4. GET all stores (with pagination & filtering)
 // ---------------------------
 export const getAllMedicalStores = async (req, res) => {
   try {
@@ -209,7 +205,7 @@ export const getAllMedicalStores = async (req, res) => {
 };
 
 // ---------------------------
-// 5. GET a single store by ID (unchanged)
+// 5. GET a single store by ID
 // ---------------------------
 export const getMedicalStoreById = async (req, res) => {
   try {

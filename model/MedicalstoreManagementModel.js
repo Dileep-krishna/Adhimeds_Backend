@@ -76,11 +76,18 @@ const medicalStoreSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // ✅ NEW: Medisoft Shop ID
+    // ✅ Medisoft Shop ID
     shopid: {
       type: String,
       default: '',
       trim: true,
+    },
+
+    // ✅ NEW: District (auto‑detected or manually set)
+    district: {
+      type: String,
+      trim: true,
+      default: '',
     },
   },
   {
@@ -90,6 +97,9 @@ const medicalStoreSchema = new mongoose.Schema(
 
 // Compound index for location-based queries
 medicalStoreSchema.index({ latitude: 1, longitude: 1 });
+
+// ✅ Index for fast district filtering (useful for order routing)
+medicalStoreSchema.index({ district: 1 });
 
 const MedicalStore = mongoose.model('MedicalStore', medicalStoreSchema);
 export default MedicalStore;

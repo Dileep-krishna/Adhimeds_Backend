@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-dotenv.config();
+dotenv.config(); // reads .env locally, harmless on Render
 
 import express from "express";
 import cors from "cors";
@@ -13,31 +13,45 @@ import connection from "./connection.js";
 import Role from "./model/Role.js";
 
 const app = express();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ---------- Environment variables ----------
+const PORT = process.env.PORT || 5000;
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
+
 // ---------- Middlewares ----------
-app.use(cors());
+app.use(cors({ origin: CLIENT_URL })); // restrict to frontend origin
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Static folder
+// Static folder for uploads
 app.use("/imgUploads", express.static(path.join(__dirname, "imgUploads")));
+
+// ---------- Health check endpoint (for Render / uptime monitoring) ----------
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+// also add a simpler root route for convenience
+app.get("/", (req, res) => {
+  res.send("Server is running 🚀");
+});
 
 // ---------- Socket.IO Setup ----------
 const server = http.createServer(app);
 const io = new SocketServer(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: CLIENT_URL,
     methods: ["GET", "POST"],
   },
 });
 
-// ✅ Make io available globally in the app
-app.set('io', io);
-
-// (Optional) Attach to req – but we will use req.app.get('io') in the controller
+// Make io available globally
+app.set("io", io);
 app.use((req, res, next) => {
   req.io = io;
   next();
@@ -51,14 +65,14 @@ io.on("connection", (socket) => {
   });
 });
 
-// ---------- Routes ----------
-app.use(router);
+// ---------- API routes ----------
+app.use("/api", router);
 
-// ---------- Database & Seed ----------
+// ---------- Database connection & seed ----------
 await connection();
 
 const seedRoles = async () => {
-  const roles = [];
+  const roles = []; // add role names like "admin", "user", etc. if needed
   for (const name of roles) {
     const exists = await Role.findOne({ name });
     if (!exists) {
@@ -69,8 +83,29 @@ const seedRoles = async () => {
 };
 await seedRoles();
 
-// ---------- Start Server ----------
-const PORT = process.env.PORT || 5000;
+// ---------- Start server ----------
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📍 Allowed origin: ${CLIENT_URL}`);
+  console.log(`🩺 Health check: http://localhost:${PORT}/health (or / on your deployed URL)`);
+});
+
+// ---------- Graceful shutdown (handles SIGTERM from Render) ----------
+process.on("SIGTERM", () => {
+  console.log("🛑 SIGTERM received, closing server...");
+  server.close(() => {
+    console.log("✅ Server closed gracefully");
+    process.exit(0);
+  });
+});
+
+// ---------- Global error handlers ----------
+process.on("uncaughtException", (err) => {
+  console.error("🔥 Uncaught Exception:", err);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("💥 Unhandled Rejection at:", promise, "reason:", reason);
+  process.exit(1);
 });

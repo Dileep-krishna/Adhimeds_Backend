@@ -17,7 +17,7 @@ export const staffLogin = async (req, res) => {
     
     // Populate the role field to get the role name
     const staff = await StaffMember.findOne({ email: email.toLowerCase() })
-      .populate('role', 'name'); // This populates the role with its name
+      .populate('role', 'name');
     
     if (!staff) {
       console.warn(`❌ No staff found with email: ${email}`);
@@ -27,6 +27,7 @@ export const staffLogin = async (req, res) => {
     console.log(`✅ Staff found: ${staff.fullName} (ID: ${staff._id})`);
     console.log(`   - Role: ${staff.role?.name || staff.role} (type: ${typeof staff.role})`);
     console.log(`   - Status: ${staff.status}`);
+    console.log(`   - District: ${staff.district || 'Not set'}`);
     console.log(`   - Has password hash: ${!!staff.password}`);
 
     if (staff.status !== 'active') {
@@ -64,15 +65,15 @@ export const staffLogin = async (req, res) => {
     console.log(`🎉 Staff login successful: ${staff.fullName} (${staff.email})`);
     console.log('==========================================\n');
 
-    // Return response without district field
+    // ✅ Include district in the response
     res.status(200).json({
       success: true,
       data: {
         token,
-        role: roleName, // Now returns role name like "PHARMACIST", not ObjectId
+        role: roleName,
         fullName: staff.fullName,
         _id: staff._id,
-        // district removed from response
+        district: staff.district || null,   // <-- now sent to frontend
       },
     });
   } catch (error) {
