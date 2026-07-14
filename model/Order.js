@@ -2,6 +2,17 @@ import mongoose from 'mongoose';
 
 const OrderSchema = new mongoose.Schema(
   {
+    // ✅ NEW: Link order to the store
+    storeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'MedicalStore', // or 'Store' depending on your model name
+      required: true,
+    },
+    // Optional: store shopid for quick reference
+    shopid: {
+      type: String,
+      default: '',
+    },
     items: [
       {
         productName: String,
@@ -23,7 +34,6 @@ const OrderSchema = new mongoose.Schema(
           enum: ['pending', 'processing', 'completed', 'cancelled', 'assigned'],
           default: 'pending',
         },
-        // ✅ ADD THIS: Store which delivery boy is assigned
         assignedTo: {
           type: String,
           default: '',
@@ -39,5 +49,8 @@ const OrderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// ✅ Add index for faster queries
+OrderSchema.index({ storeId: 1 });
 
 export default mongoose.model('Order', OrderSchema);

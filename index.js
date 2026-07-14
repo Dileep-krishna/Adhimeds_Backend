@@ -17,7 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ---------- Environment variables ----------
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
 
 // ---------- Middlewares ----------
@@ -60,6 +60,15 @@ app.use((req, res, next) => {
 // ---------- Socket.IO connection handler ----------
 io.on("connection", (socket) => {
   console.log("🟢 New client connected:", socket.id);
+
+  // ✅ NEW: Listen for store room joining
+  socket.on("join-store-room", (storeId) => {
+    if (storeId) {
+      socket.join(`store-${storeId}`);
+      console.log(`✅ Socket ${socket.id} joined room: store-${storeId}`);
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("🔴 Client disconnected:", socket.id);
   });

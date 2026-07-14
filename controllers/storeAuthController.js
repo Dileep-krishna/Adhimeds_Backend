@@ -21,6 +21,7 @@ export const storeLogin = async (req, res) => {
     // 1. Try to find in StoreLogin collection
     let store = await Store.findOne({ emailAddress: emailAddress.toLowerCase() }).select('+password');
     let storeType = 'StoreLogin';
+    let district = '';
 
     // 2. If not found, try MedicalStore collection
     if (!store) {
@@ -38,6 +39,25 @@ export const storeLogin = async (req, res) => {
     console.log('   Store name:', store.storeName);
     console.log('   Status:', store.status);
     console.log('   shopid:', store.shopid || 'Not set');
+
+    // ✅ NEW: Fetch district from MedicalStore (which has it)
+    // If the store was found in MedicalStore directly, district is already available
+    if (storeType === 'MedicalStore') {
+      district = store.district || '';
+    } else {
+      // If found in StoreLogin, fetch district from MedicalStore using email or shopid
+      try {
+        const medicalStore = await MedicalStore.findOne({ 
+          emailAddress: emailAddress.toLowerCase() 
+        });
+        district = medicalStore?.district || '';
+        console.log('📌 Fetched district from MedicalStore:', district);
+      } catch (err) {
+        console.warn('Could not fetch district from MedicalStore:', err.message);
+        district = '';
+      }
+    }
+
     console.log('   Password hash (first 10 chars):', store.password ? store.password.substring(0, 10) : 'MISSING');
 
     // 3. Compare password
@@ -67,6 +87,7 @@ export const storeLogin = async (req, res) => {
         email: store.emailAddress,
         storeName: store.storeName,
         shopid: store.shopid || '',
+        district: district, // ✅ Include district in token
         role: 'store',
         source: storeType
       },
@@ -74,14 +95,16 @@ export const storeLogin = async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    // 6. Return success – include shopid in response
+    // 6. Return success – ✅ NOW INCLUDES DISTRICT
     console.log('🎉 Login successful!');
+    console.log('📌 District returned:', district);
     res.status(200).json({
       success: true,
       storeId: store._id,
-      shopid: store.shopid || '',     // ✅ Medisoft shop ID (or empty)
+      shopid: store.shopid || '',
       storeName: store.storeName,
       email: store.emailAddress,
+      district: district, // ✅ NEW: District field
       token,
       message: 'Login successful'
     });

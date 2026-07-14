@@ -29,15 +29,13 @@ export const addMedicalStore = async (req, res) => {
       gstNumber,
       contactNumber,
       pharmacistName,
-      district,                 // ✅ NEW: district from frontend
+      district,
     } = req.body;
 
-    // --- Required fields validation ---
     if (!storeName || storeName.trim() === '') {
       return res.status(400).json({ success: false, message: 'Store name is required' });
     }
 
-    // Parse latitude/longitude (they come as strings from FormData)
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
     if (isNaN(lat) || isNaN(lng)) {
@@ -47,7 +45,6 @@ export const addMedicalStore = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid coordinates' });
     }
 
-    // --- Optional fields ---
     let hashedPassword = undefined;
     if (password && password.trim()) {
       hashedPassword = await bcrypt.hash(password, 10);
@@ -72,11 +69,10 @@ export const addMedicalStore = async (req, res) => {
       contactNumber: contactNumber?.trim() || undefined,
       pharmacistName: pharmacistName?.trim() || undefined,
       thumbnailImages: thumbnailUrls,
-      district: district?.trim() || '',     // ✅ NEW: save district
+      district: district?.trim() || '',
     });
 
     const savedStore = await newStore.save();
-    // Remove password from response
     const { password: _, ...storeWithoutPassword } = savedStore.toObject();
     res.status(201).json({ success: true, data: storeWithoutPassword });
   } catch (error) {
@@ -93,7 +89,6 @@ export const updateMedicalStore = async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    // ✅ Allow district to be updated
     const allowedUpdates = [
       'storeName',
       'shopid',
@@ -111,7 +106,7 @@ export const updateMedicalStore = async (req, res) => {
       'contactNumber',
       'pharmacistName',
       'password',
-      'district',                // ✅ NEW: district allowed
+      'district',
     ];
 
     const filteredUpdates = {};
@@ -121,7 +116,6 @@ export const updateMedicalStore = async (req, res) => {
       }
     }
 
-    // If password is being updated, hash it
     if (filteredUpdates.password) {
       filteredUpdates.password = await bcrypt.hash(filteredUpdates.password, 10);
     }
@@ -136,7 +130,6 @@ export const updateMedicalStore = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Medical store not found' });
     }
 
-    // Remove password from response
     const { password: _, ...storeWithoutPassword } = updatedStore.toObject();
     res.status(200).json({ success: true, data: storeWithoutPassword });
   } catch (error) {
@@ -165,7 +158,7 @@ export const deleteMedicalStore = async (req, res) => {
 };
 
 // ---------------------------
-// 4. GET all stores (with pagination & filtering)
+// 4. GET all stores (with pagination & filtering) – UNCHANGED
 // ---------------------------
 export const getAllMedicalStores = async (req, res) => {
   try {
@@ -182,7 +175,6 @@ export const getAllMedicalStores = async (req, res) => {
 
     const total = await MedicalStore.countDocuments(filter);
 
-    // Remove passwords from each store
     const storesWithoutPassword = stores.map(store => {
       const { password, ...rest } = store.toObject();
       return rest;
@@ -220,6 +212,35 @@ export const getMedicalStoreById = async (req, res) => {
     res.status(200).json({ success: true, data: storeWithoutPassword });
   } catch (error) {
     console.error('Error fetching medical store:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// ---------------------------
+// 6. NEW: GET stores for order routing (minimal fields)
+// ---------------------------
+export const getShopsForOrder = async (req, res) => {
+  try {
+    // Return only the fields needed for order routing
+    const shops = await MedicalStore.find(
+      {},
+      'shopid storeName address district status'
+    ).lean();
+
+    // Map to match the expected frontend field names (name, address1, etc.)
+    const formatted = shops.map(shop => ({
+      shopid: shop.shopid,
+      name: shop.storeName,
+      address1: shop.address ? shop.address.split(',')[0] : '',
+      address2: shop.address || '',
+      pincode: shop.pincode || '',
+      district: shop.district || '',
+      status: shop.status || 'pending',
+    }));
+
+    res.status(200).json(formatted);
+  } catch (error) {
+    console.error('Error fetching shops for order:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };

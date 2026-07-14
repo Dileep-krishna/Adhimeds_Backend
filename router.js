@@ -19,7 +19,7 @@ import {
   updateCategory,
   createCategory,
 } from "./controllers/categoryManagmentController.js";
-import { addMedicalStore, deleteMedicalStore, getAllMedicalStores, getMedicalStoreById, updateMedicalStore } from "./controllers/MedicalstoreManagementController.js";
+import { addMedicalStore, deleteMedicalStore, getAllMedicalStores, getMedicalStoreById, getShopsForOrder, updateMedicalStore } from "./controllers/MedicalstoreManagementController.js";
 import { addStaff, deleteStaff, getAllDistricts, getAllStaff, getStaffById, updateStaff } from "./controllers/staffmanagementController.js";
 import { createRole, deleteRole, getAllRoles, getRoleById, updateRole, updateRolePermissions } from "./controllers/roleController.js";
 import { 
@@ -117,6 +117,7 @@ router.put(
   multerConfig.array('thumbnailImages', 10),
   updateMedicalStore
 );
+router.get('/medisoft/shops', getShopsForOrder); 
 router.delete('/store/:id', deleteMedicalStore);
 
 // ================= STAFF ROUTES =================

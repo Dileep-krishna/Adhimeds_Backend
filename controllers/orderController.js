@@ -1,5 +1,7 @@
 import dotenv from 'dotenv';
+import mongoose from 'mongoose'; // ✅ Needed for ObjectId validation
 import Order from '../model/Order.js';
+import MedicalStore from '../model/MedicalstoreManagementModel.js';
 
 dotenv.config();
 
@@ -17,12 +19,28 @@ export const createOrder = async (req, res) => {
   }
 
   try {
+    const storeName = items[0]?.storeName;
+    if (!storeName) {
+      console.log("❌ No storeName found in cart items");
+      return res.status(400).json({ success: false, message: 'Store name is required' });
+    }
+
+    const store = await MedicalStore.findOne({ storeName: storeName });
+    if (!store) {
+      console.log(`❌ Store not found for name: ${storeName}`);
+      return res.status(400).json({ success: false, message: `Store "${storeName}" not found` });
+    }
+
+    console.log(`✅ Found store: ${store.storeName} (ID: ${store._id}, shopid: ${store.shopid})`);
+
     const total = items.reduce(
       (sum, item) => sum + (item.mrp || 0) * item.quantity,
       0
     );
 
     const order = new Order({
+      storeId: store._id,         // Link to store
+      shopid: store.shopid || '', // Quick reference
       items,
       total,
       status: 'pending',
@@ -31,17 +49,12 @@ export const createOrder = async (req, res) => {
     await order.save();
     console.log("✅ Order created with ID:", order._id);
 
-    // ─── EMIT REAL-TIME EVENT ──────────────────────────────────────────
+    // ─── EMIT REAL-TIME EVENT ONLY TO THE STORE ROOM ──────────────────
     const io = req.app.get('io');
-    console.log("🔍 io instance from app:", io ? "FOUND" : "NOT FOUND");
-
     if (io) {
-      console.log("📡 Emitting 'new_order' event with payload:", { orderId: order._id, order });
-      io.emit('new_order', {
-        orderId: order._id,
-        order: order,
-      });
-      console.log("✅ Event emitted successfully");
+      // Emit only to the room named "store-<storeId>"
+      io.to(`store-${store._id}`).emit('new_order', { orderId: order._id, order });
+      console.log(`✅ Event emitted to room: store-${store._id}`);
     } else {
       console.warn("⚠️ io not found – skipping emit");
     }
@@ -58,13 +71,35 @@ export const createOrder = async (req, res) => {
   }
 };
 
-// @desc    Get all orders
-// @route   GET /api/orders
+// @desc    Get all orders (supports storeId filter – ObjectId or shopid)
+// @route   GET /api/orders?storeId=...
 // @access  Public
 export const getAllOrders = async (req, res) => {
-  console.log("📨 Fetching all orders");
+  console.log(`📨 Fetching orders with storeId filter: ${req.query.storeId || 'none'}`);
   try {
-    const orders = await Order.find().sort({ createdAt: -1 });
+    const { storeId } = req.query;
+    let filter = {};
+
+    if (storeId) {
+      // Check if storeId is a valid MongoDB ObjectId
+      if (mongoose.Types.ObjectId.isValid(storeId)) {
+        filter.storeId = storeId;
+        console.log(`🔍 Filtering by ObjectId: ${storeId}`);
+      } else {
+        // Treat as shopid – find the store first
+        console.log(`🔍 Treating "${storeId}" as shopid – looking up store...`);
+        const store = await MedicalStore.findOne({ shopid: storeId });
+        if (store) {
+          filter.storeId = store._id;
+          console.log(`✅ Found store with shopid ${storeId} → ObjectId ${store._id}`);
+        } else {
+          console.log(`❌ No store found for shopid: ${storeId}`);
+          return res.json({ success: true, data: [] });
+        }
+      }
+    }
+
+    const orders = await Order.find(filter).sort({ createdAt: -1 });
     console.log(`✅ Found ${orders.length} orders`);
     res.json({ success: true, data: orders });
   } catch (error) {
@@ -96,23 +131,6 @@ export const getOrderById = async (req, res) => {
 // @desc    Update a single item's status inside an order
 // @route   PUT /api/orders/:orderId/items/:itemId
 // @access  Public
-// @desc    Update a single item's status inside an order
-// @route   PUT /api/orders/:orderId/items/:itemId
-// @access  Public
-// @desc    Update a single item's status inside an order
-// @route   PUT /api/orders/:orderId/items/:itemId
-// @access  Public
-// controllers/orderController.js
-
-// @desc    Update a single item's status inside an order
-// @route   PUT /api/orders/:orderId/items/:itemId
-// @access  Public
-// @desc    Update a single item's status inside an order
-// @route   PUT /api/orders/:orderId/items/:itemId
-// @access  Public
-// @desc    Update a single item's status inside an order
-// @route   PUT /api/orders/:orderId/items/:itemId
-// @access  Public
 export const updateItemStatus = async (req, res) => {
   const { orderId, itemId } = req.params;
   const { status, assignedTo } = req.body;
@@ -139,15 +157,9 @@ export const updateItemStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Item not found' });
     }
 
-    // ✅ Update status
     item.status = status;
-    
-    // ✅ Update assignedTo ONLY if it's provided
     if (assignedTo !== undefined) {
-      console.log("✅ Setting assignedTo to:", assignedTo);
       item.assignedTo = assignedTo;
-    } else {
-      console.log("⚠️ assignedTo is undefined – not setting");
     }
 
     await order.save();
@@ -177,10 +189,8 @@ export const deleteItemFromOrder = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Item not found' });
     }
 
-    // Remove the item
     order.items.pull(itemId);
 
-    // If no items left, delete the entire order
     if (order.items.length === 0) {
       await Order.findByIdAndDelete(orderId);
       return res.json({
@@ -189,7 +199,6 @@ export const deleteItemFromOrder = async (req, res) => {
       });
     }
 
-    // Recalculate total
     order.total = order.items.reduce(
       (sum, i) => sum + (i.mrp || 0) * (i.quantity || 1),
       0
