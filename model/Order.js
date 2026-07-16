@@ -31,10 +31,14 @@ const OrderSchema = new mongoose.Schema(
         gst: String,
         status: {
           type: String,
-          enum: ['pending', 'processing', 'completed', 'cancelled', 'assigned'],
+          enum: ['pending', 'processing', 'completed', 'cancelled', 'assigned', 'confirmed'],
           default: 'pending',
         },
         assignedTo: {
+          type: String,
+          default: '',
+        },
+        billUrl: {
           type: String,
           default: '',
         },
@@ -43,7 +47,7 @@ const OrderSchema = new mongoose.Schema(
     total: Number,
     status: {
       type: String,
-      enum: ['pending', 'processing', 'completed', 'cancelled', 'assigned'],
+      enum: ['pending', 'processing', 'completed', 'cancelled', 'assigned', 'confirmed'],
       default: 'pending',
     },
   },

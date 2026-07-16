@@ -47,7 +47,7 @@ import { adminLogin } from "./controllers/authController.js";
 import { storeLogin } from "./controllers/storeAuthController.js";
 import { verifyStoreToken } from "./middlewares/jwtMiddleware.js";
 import { staffLogin } from "./controllers/StaffLoginController.js";
-import { createOrder,  deleteItemFromOrder,  getAllOrders, getOrderById, updateItemStatus, } from "./controllers/orderController.js";
+import { createOrder,  deleteItemFromOrder,  getAllOrders, getOrderById, updateItemStatus, updateOrderStatus, uploadBill, } from "./controllers/orderController.js";
 import {  createNotification, deleteAllNotifications, getNotifications, markNotificationRead } from "./controllers/notificationController.js";
 
 const router = express.Router();
@@ -226,7 +226,13 @@ router.get('/orders', getAllOrders);
 router.get('/orders/:id', getOrderById);
 router.put('/orders/:orderId/items/:itemId', updateItemStatus);
 router.delete('/orders/:orderId/items/:itemId', deleteItemFromOrder);
-export default router;
+router.post(
+  '/orders/:orderId/items/:itemId/upload-bill',
+  multerConfig.single('bill'), // field name must be 'bill'
+  uploadBill
+);
+
+router.put('/orders/:id/status', updateOrderStatus);
 // ==============Notification==================
 router.post('/notifications', createNotification);
 router.get('/notifications', getNotifications);
@@ -245,3 +251,5 @@ router.get('/test-emit', (req, res) => {
     res.status(500).send('io not found');
   }
 });
+
+export default router;
