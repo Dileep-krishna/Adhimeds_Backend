@@ -1,10 +1,9 @@
-
 import Deliveryboys from "../model/deliveryboysModel.js";
-
 import bcrypt from "bcryptjs";
 
-// ✅ Recommended: create index for faster duplicate checks (run once in MongoDB)
-// db.deliveryboys.createIndex({ email: 1, phone: 1 });
+// ──────────────────────────────────────────────
+// ADD DELIVERY BOY
+// ──────────────────────────────────────────────
 export const addDeliveryBoy = async (req, res) => {
   try {
     const {
@@ -15,9 +14,11 @@ export const addDeliveryBoy = async (req, res) => {
       aadharNumber,
       licenseNumber,
       bikeNumber,
-      district
+      district,
+      status,
     } = req.body;
 
+    // Check if delivery boy already exists
     const existing = await Deliveryboys.findOne({
       $or: [{ email }, { phone }]
     }).lean().select('_id');
@@ -31,6 +32,10 @@ export const addDeliveryBoy = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // ✅ Store ONLY the filename (not the full path)
+    const aadharImage = req.files?.aadharImage?.[0]?.filename || "";
+    const licenseImage = req.files?.licenseImage?.[0]?.filename || "";
+
     const newDeliveryBoy = new Deliveryboys({
       name,
       email,
@@ -40,10 +45,12 @@ export const addDeliveryBoy = async (req, res) => {
       licenseNumber,
       bikeNumber,
       district,
-      aadharImage: req.files?.aadharImage?.[0]?.path || "",
-      licenseImage: req.files?.licenseImage?.[0]?.path || "",
+      status: status || 'active',
+      aadharImage,
+      licenseImage,
       isVerified: true,
-      isPhoneVerified: true
+      isPhoneVerified: true,
+      isAvailable: true,
     });
 
     await newDeliveryBoy.save();
@@ -63,47 +70,116 @@ export const addDeliveryBoy = async (req, res) => {
   }
 };
 
+// ──────────────────────────────────────────────
+// GET ALL DELIVERY BOYS
+// ──────────────────────────────────────────────
 export const getAllDeliveryBoys = async (req, res) => {
   try {
     const deliveryBoys = await Deliveryboys.find().lean();
+    console.log('📦 Sending delivery boys with images:', deliveryBoys.map(b => ({
+      name: b.name,
+      aadharImage: b.aadharImage,
+      licenseImage: b.licenseImage
+    })));
     res.status(200).json(deliveryBoys);
   } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export const deleteDeliveryBoy = async (req, res) => {
-  try {
-    const { id } = req.params;
-    await Deliveryboys.findByIdAndDelete(id);
-    res.status(200).json({ success: true, message: "Deleted" });
-  } catch (error) {
+    console.error("Get all error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
+// ──────────────────────────────────────────────
+// UPDATE DELIVERY BOY
+// ──────────────────────────────────────────────
 export const updateDeliveryBoy = async (req, res) => {
   try {
     const { id } = req.params;
+    const {
+      name,
+      email,
+      phone,
+      password,
+      aadharNumber,
+      licenseNumber,
+      bikeNumber,
+      district,
+      status,
+    } = req.body;
+
     const updateData = {};
 
-    if (req.body.name) updateData.name = req.body.name;
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (aadharNumber !== undefined) updateData.aadharNumber = aadharNumber;
+    if (licenseNumber !== undefined) updateData.licenseNumber = licenseNumber;
+    if (bikeNumber !== undefined) updateData.bikeNumber = bikeNumber;
+    if (district !== undefined) updateData.district = district;
+    if (status !== undefined) updateData.status = status;
 
-    if (req.body.password) {
-      updateData.password = await bcrypt.hash(req.body.password, 10);
+    if (password && password.trim() !== '') {
+      updateData.password = await bcrypt.hash(password, 10);
     }
 
+    // ✅ Store ONLY the filename (if a new file is uploaded)
     if (req.files?.aadharImage) {
-      updateData.aadharImage = req.files.aadharImage[0].path;
+      updateData.aadharImage = req.files.aadharImage[0].filename;
+    }
+    if (req.files?.licenseImage) {
+      updateData.licenseImage = req.files.licenseImage[0].filename;
     }
 
-    const updatedBoy = await Deliveryboys.findByIdAndUpdate(id, updateData, { new: true });
+    const updatedBoy = await Deliveryboys.findByIdAndUpdate(
+      id,
+      updateData,
+      {
+        returnDocument: 'after',   // modern option, replaces new: true
+        runValidators: true,
+      }
+    );
+
+    if (!updatedBoy) {
+      return res.status(404).json({
+        success: false,
+        message: "Delivery boy not found"
+      });
+    }
 
     res.status(200).json({
       success: true,
       data: updatedBoy
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Update error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// ──────────────────────────────────────────────
+// DELETE DELIVERY BOY
+// ──────────────────────────────────────────────
+export const deleteDeliveryBoy = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Deliveryboys.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Delivery boy not found"
+      });
+    }
+    res.status(200).json({
+      success: true,
+      message: "Delivery boy deleted successfully"
+    });
+  } catch (error) {
+    console.error("Delete error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
