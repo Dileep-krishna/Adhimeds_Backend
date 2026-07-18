@@ -31,14 +31,12 @@ export const addStaff = async (req, res) => {
   try {
     const { fullName, phone, joiningDate, email, role, storeId, status, password, district } = req.body;
 
-    // Required fields – added district
     const requiredFields = ['fullName', 'phone', 'email', 'role', 'password', 'district'];
     const missing = requiredFields.filter(field => !req.body[field]);
     if (missing.length) {
       return res.status(400).json({ success: false, message: `Missing: ${missing.join(', ')}` });
     }
 
-    // Validations
     if (fullName.trim().length < 2)
       return res.status(400).json({ success: false, message: 'Full name min 2 chars' });
     if (!isValidEmail(email))
@@ -47,32 +45,24 @@ export const addStaff = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid phone' });
     if (!password || password.length < 6)
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
-
-    // District validation
-    if (!KERALA_DISTRICTS.includes(district)) {
+    if (!KERALA_DISTRICTS.includes(district))
       return res.status(400).json({ success: false, message: `Invalid district. Must be one of: ${KERALA_DISTRICTS.join(', ')}` });
-    }
 
-    // Role name → ObjectId
     const roleId = await getRoleIdByName(role);
     if (!roleId)
       return res.status(400).json({ success: false, message: `Role "${role}" not found` });
 
-    // Joining date
     let validJoiningDate = joiningDate ? new Date(joiningDate) : new Date();
     if (joiningDate && !isValidDate(joiningDate))
       return res.status(400).json({ success: false, message: 'Invalid joining date' });
     if (validJoiningDate > new Date())
       return res.status(400).json({ success: false, message: 'Joining date cannot be future' });
 
-    // Optional storeId
     if (storeId && !isValidObjectId(storeId))
       return res.status(400).json({ success: false, message: 'Invalid storeId' });
 
-    // Status default
     const finalStatus = allowedStatuses.includes(status) ? status : 'active';
 
-    // Duplicate email check
     const existing = await StaffMember.findOne({ email: email.toLowerCase() });
     if (existing)
       return res.status(409).json({ success: false, message: 'Email already registered' });
@@ -90,14 +80,12 @@ export const addStaff = async (req, res) => {
     });
 
     const saved = await newStaff.save();
-
     await saved.populate('role', 'name');
     const staffData = saved.toObject();
     delete staffData.password;
 
     res.status(201).json({ success: true, data: staffData });
   } catch (error) {
-    console.error('Error adding staff:', error);
     if (error.code === 11000)
       return res.status(409).json({ success: false, message: 'Duplicate email' });
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -105,7 +93,7 @@ export const addStaff = async (req, res) => {
 };
 
 // -------------------------------
-// 2. GET all staff (filters, pagination) – added district filter
+// 2. GET all staff (with filters & pagination) – optimized
 // -------------------------------
 export const getAllStaff = async (req, res) => {
   try {
@@ -152,7 +140,6 @@ export const getAllStaff = async (req, res) => {
       pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
     });
   } catch (error) {
-    console.error('Error fetching staff:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
@@ -171,18 +158,18 @@ export const getStaffById = async (req, res) => {
       .populate('role', 'name')
       .populate('storeId', 'storeName')
       .lean();
+
     if (!staff)
       return res.status(404).json({ success: false, message: 'Staff not found' });
 
     res.status(200).json({ success: true, data: staff });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
 // -------------------------------
-// 4. UPDATE a staff member
+// 4. UPDATE a staff member (with fullName fix)
 // -------------------------------
 export const updateStaff = async (req, res) => {
   try {
@@ -196,48 +183,43 @@ export const updateStaff = async (req, res) => {
 
     for (const key of allowedUpdates) {
       if (updateData[key] !== undefined) {
-        if (key === 'fullName' && updateData.fullName.trim().length < 2)
-          return res.status(400).json({ success: false, message: 'Full name min 2 chars' });
-        if (key === 'email') {
+        if (key === 'fullName') {
+          if (updateData.fullName.trim().length < 2)
+            return res.status(400).json({ success: false, message: 'Full name min 2 chars' });
+          filtered.fullName = updateData.fullName.trim();
+        } else if (key === 'email') {
           if (!isValidEmail(updateData.email))
             return res.status(400).json({ success: false, message: 'Invalid email' });
           filtered.email = updateData.email.toLowerCase().trim();
-        }
-        if (key === 'phone') {
+        } else if (key === 'phone') {
           if (!isValidPhone(updateData.phone))
             return res.status(400).json({ success: false, message: 'Invalid phone' });
           filtered.phone = updateData.phone.trim();
-        }
-        if (key === 'role') {
+        } else if (key === 'role') {
           const roleId = await getRoleIdByName(updateData.role);
           if (!roleId)
             return res.status(400).json({ success: false, message: 'Invalid role' });
           filtered.role = roleId;
-        }
-        if (key === 'joiningDate' && updateData.joiningDate) {
+        } else if (key === 'joiningDate' && updateData.joiningDate) {
           if (!isValidDate(updateData.joiningDate))
             return res.status(400).json({ success: false, message: 'Invalid joining date' });
           const dateObj = new Date(updateData.joiningDate);
           if (dateObj > new Date())
             return res.status(400).json({ success: false, message: 'Joining date cannot be future' });
           filtered.joiningDate = dateObj;
-        }
-        if (key === 'storeId') {
+        } else if (key === 'storeId') {
           if (updateData.storeId && !isValidObjectId(updateData.storeId))
             return res.status(400).json({ success: false, message: 'Invalid storeId' });
           filtered.storeId = updateData.storeId || null;
-        }
-        if (key === 'status') {
+        } else if (key === 'status') {
           if (!allowedStatuses.includes(updateData.status))
             return res.status(400).json({ success: false, message: 'Invalid status' });
           filtered.status = updateData.status;
-        }
-        if (key === 'password') {
+        } else if (key === 'password') {
           if (updateData.password && updateData.password.length < 6)
             return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
           filtered.password = updateData.password;
-        }
-        if (key === 'district') {
+        } else if (key === 'district') {
           if (!KERALA_DISTRICTS.includes(updateData.district))
             return res.status(400).json({ success: false, message: `Invalid district. Must be one of: ${KERALA_DISTRICTS.join(', ')}` });
           filtered.district = updateData.district.trim();
@@ -259,12 +241,12 @@ export const updateStaff = async (req, res) => {
       .select('-password')
       .populate('role', 'name')
       .populate('storeId', 'storeName');
+
     if (!updated)
       return res.status(404).json({ success: false, message: 'Staff not found' });
 
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
-    console.error('Error updating staff:', error);
     if (error.code === 11000)
       return res.status(409).json({ success: false, message: 'Duplicate email' });
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -286,10 +268,10 @@ export const deleteStaff = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Staff deleted successfully', data: deleted });
   } catch (error) {
-    console.error('Error deleting staff:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
+
 // Get all Kerala districts
 export const getAllDistricts = (req, res) => {
   res.status(200).json({
