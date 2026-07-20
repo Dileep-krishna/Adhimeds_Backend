@@ -244,3 +244,25 @@ export const getShopsForOrder = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
+export const getStoreByEmail = async (req, res) => {
+   console.log('👉 getStoreByEmail called with query:', req.query);
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email query parameter is required' });
+    }
+    const store = await MedicalStore.findOne({ emailAddress: email.toLowerCase() }).lean();
+    if (!store) {
+      return res.status(404).json({ success: false, message: 'No store found with this email' });
+    }
+    res.json({
+      success: true,
+      storeId: store._id,
+      storeName: store.storeName,
+      email: store.emailAddress
+    });
+  } catch (error) {
+    console.error('Error in getStoreByEmail:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

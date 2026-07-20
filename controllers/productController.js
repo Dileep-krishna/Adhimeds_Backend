@@ -525,24 +525,24 @@ export const getCurrentStore = async (req, res) => {
 };
 
 // ================= NEW: Get store by email =================
-export const getStoreByEmail = async (req, res) => {
-  try {
-    const { email } = req.query;
-    if (!email) {
-      return res.status(400).json({ success: false, message: 'Email query parameter is required' });
-    }
-    const store = await MedicalStore.findOne({ emailAddress: email.toLowerCase() }).lean();
-    if (!store) {
-      return res.status(404).json({ success: false, message: 'No store found with this email' });
-    }
-    res.json({
-      success: true,
-      storeId: store._id,
-      storeName: store.storeName,
-      email: store.emailAddress
-    });
-  } catch (error) {
-    console.error('Error in getStoreByEmail:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
+// export const getStoreByEmail = async (req, res) => {
+//   try {
+//     const { email } = req.query;
+//     if (!email) {
+//       return res.status(400).json({ success: false, message: 'Email query parameter is required' });
+//     }
+//     const store = await MedicalStore.findOne({ emailAddress: email.toLowerCase() }).lean();
+//     if (!store) {
+//       return res.status(404).json({ success: false, message: 'No store found with this email' });
+//     }
+//     res.json({
+//       success: true,
+//       storeId: store._id,
+//       storeName: store.storeName,
+//       email: store.emailAddress
+//     });
+//   } catch (error) {
+//     console.error('Error in getStoreByEmail:', error);
+//     res.status(500).json({ success: false, message: 'Server error' });
+//   }
+// };

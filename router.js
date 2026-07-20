@@ -19,7 +19,7 @@ import {
   updateCategory,
   createCategory,
 } from "./controllers/categoryManagmentController.js";
-import { addMedicalStore, deleteMedicalStore, getAllMedicalStores, getMedicalStoreById, getShopsForOrder, updateMedicalStore } from "./controllers/MedicalstoreManagementController.js";
+import { addMedicalStore, deleteMedicalStore, getAllMedicalStores, getMedicalStoreById, getShopsForOrder, getStoreByEmail, updateMedicalStore } from "./controllers/MedicalstoreManagementController.js";
 import { addStaff, deleteStaff, getAllDistricts, getAllStaff, getStaffById, updateStaff } from "./controllers/staffmanagementController.js";
 import { createRole, deleteRole, getAllRoles, getRoleById, updateRole, updateRolePermissions } from "./controllers/roleController.js";
 import { 
@@ -34,7 +34,7 @@ import {
   getCurrentStore,
   getAllStoreProducts,
   toggleProductAccessForStore,
-  getStoreByEmail
+
 } from "./controllers/productController.js";
 import { deleteRolePermissions, getRolePermissions, setRolePermissions } from "./controllers/rolePermissionController.js";
 import { createBrand, deleteBrand, getAllBrands, getBrandById, updateBrand } from "./controllers/brandController.js";
@@ -49,6 +49,7 @@ import { verifyStoreToken } from "./middlewares/jwtMiddleware.js";
 import { staffLogin } from "./controllers/StaffLoginController.js";
 import { createOrder,  deleteItemFromOrder,  getAllOrders, getOrderById, updateItemStatus, updateOrderStatus, uploadBill, } from "./controllers/orderController.js";
 import {  createNotification, deleteAllNotifications, getNotifications, markNotificationRead } from "./controllers/notificationController.js";
+import { deleteProductAccess, getStoreProductDetails, getStoreProducts, updateProductAccess, updateStoreProductPriceStock } from "./controllers/storeProductAccessController.js";
 
 const router = express.Router();
 
@@ -120,6 +121,12 @@ router.put(
 router.get('/medisoft/shops', getShopsForOrder); 
 router.delete('/store/:id', deleteMedicalStore);
 
+// ===============Store Product Access==============
+router.put('/store/product-access/:productId/:storeId', updateProductAccess);
+router.get('/store/products/:storeId', getStoreProducts);
+router.delete('/store/product-access/:productId/:storeId', deleteProductAccess);
+router.put('/store/product/:productId/:storeId', updateStoreProductPriceStock);
+router.get('/store/product-details/:productId/:storeId', getStoreProductDetails);
 // ================= STAFF ROUTES =================
 router.post('/staff', addStaff);
 router.get('/staff', getAllStaff);
