@@ -8,7 +8,6 @@ const categorySchema = new mongoose.Schema(
       trim: true,
     },
 
- 
     parent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
@@ -16,16 +15,15 @@ const categorySchema = new mongoose.Schema(
     },
 
     icon: {
-      type: String, // image filename or URL
+      type: String,
       default: "",
     },
 
     coverImage: {
-      type: String, // image filename or URL
+      type: String,
       default: "",
     },
 
-    // NEW FIELD: Banner image (150x150)
     banner: {
       type: String,
       default: "",
@@ -41,28 +39,50 @@ const categorySchema = new mongoose.Schema(
       default: false,
     },
 
+    isHot: {
+      type: Boolean,
+      default: false,
+    },
+
     status: {
       type: String,
       enum: ["active", "inactive"],
       default: "active",
     },
 
-    // NEW FIELD: SEO meta title
+    // ─── SEO fields ───
     metaTitle: {
       type: String,
       default: "",
       trim: true,
     },
 
-    // NEW FIELD: SEO meta description
     metaDescription: {
       type: String,
       default: "",
       trim: true,
     },
+
+    // ✅ NEW: Meta Keywords (comma-separated string)
+    metaKeywords: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // ✅ NEW: Filtering Attributes (array of Attribute IDs)
+    // If you have an Attribute model, use ObjectId references:
+    filteringAttributes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Attribute",
+      },
+    ],
+    // If you DON'T have an Attribute model, use this instead:
+    // filteringAttributes: [{ type: String }],
   },
   {
-    timestamps: true, // createdAt & updatedAt
+    timestamps: true,
   }
 );
 

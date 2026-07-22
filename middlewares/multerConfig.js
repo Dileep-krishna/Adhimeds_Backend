@@ -1,12 +1,18 @@
 import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// Ensure upload directory exists
+const uploadDir = "imgUploads";
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // ✅ Use your existing imgUploads folder
     cb(null, "imgUploads");
   },
   filename: (req, file, cb) => {
-    // ✅ Sanitize filename: replace spaces & unsafe characters
     const original = file.originalname;
     const sanitized = original
       .replace(/\s+/g, "_")                // spaces → underscores
@@ -44,14 +50,26 @@ const fileFilter = (req, file, cb) => {
     return;
   }
 
-  // 4. Everything else – reject
+  // ─── NEW: CSV/Excel – for bulk import (fieldname "file") ───
+  if (
+    file.fieldname === "file" &&
+    (file.mimetype === "text/csv" ||
+     file.mimetype === "application/csv" ||
+     file.mimetype === "application/vnd.ms-excel" ||
+     file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+  ) {
+    cb(null, true);
+    return;
+  }
+
+  // Everything else – reject
   cb(new Error(`File type not allowed for field "${file.fieldname}"`), false);
 };
 
 const multerConfig = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
 export default multerConfig;

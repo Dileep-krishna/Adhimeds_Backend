@@ -18,6 +18,9 @@ import {
   deleteCategory,
   updateCategory,
   createCategory,
+  bulkExportCategories,
+  downloadTemplate,
+  bulkImportCategories,
 } from "./controllers/categoryManagmentController.js";
 import { addMedicalStore, deleteMedicalStore, getAllMedicalStores, getMedicalStoreById, getShopsForOrder, getStoreByEmail, updateMedicalStore } from "./controllers/MedicalstoreManagementController.js";
 import { addStaff, deleteStaff, getAllDistricts, getAllStaff, getStaffById, updateStaff } from "./controllers/staffmanagementController.js";
@@ -34,6 +37,8 @@ import {
   getCurrentStore,
   getAllStoreProducts,
   toggleProductAccessForStore,
+  bulkExportProducts,
+  bulkImportProducts,
 
 } from "./controllers/productController.js";
 import { deleteRolePermissions, getRolePermissions, setRolePermissions } from "./controllers/rolePermissionController.js";
@@ -79,6 +84,20 @@ router.put(
 );
 
 // ================= CATEGORY ROUTES =================
+// ─── Static routes (no :id parameter) ───
+router.post(
+  "/category/bulk-import",
+  multerConfig.single("file"),
+  async (req, res) => {
+    try {
+      await bulkImportCategories(req, res);
+    } catch (error) {
+      console.error("🔥 Route-level error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  }
+);
+
 router.post(
   "/category",
   multerConfig.fields([
@@ -90,6 +109,15 @@ router.post(
 );
 
 router.get("/category", getCategories);
+router.get("/category/export", bulkExportCategories);        // ✅ before /:id
+router.get("/category/template", downloadTemplate);          // ✅ before /:id
+router.post(
+  "/category/bulk-import",
+  multerConfig.single("file"),
+  bulkImportCategories
+);
+
+// ─── Dynamic routes (with :id parameter) – MUST COME LAST ───
 router.get("/category/:id", getCategoryById);
 router.put(
   "/category/:id",
@@ -153,6 +181,11 @@ const productUploadFields = multerConfig.fields([
   { name: 'pdfSpec', maxCount: 1 },
 ]);
 
+// ─── Bulk Import / Export (must come BEFORE /:id) ───
+router.post('/products/bulk-import', multerConfig.single('file'), bulkImportProducts);
+router.get('/products/export', bulkExportProducts);
+
+// ─── CRUD routes ───
 router.post('/products', productUploadFields, addProduct);
 router.get('/products', getAllProducts);
 router.get('/products/:id', getProductById);

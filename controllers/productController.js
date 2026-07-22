@@ -2,7 +2,8 @@
 import Product from '../model/AddProductPageModel.js';
 import StoreProductOverride from '../model/StoreProductOverride.js';
 import MedicalStore from '../model/MedicalstoreManagementModel.js'; // ✅ Add this import
-
+import XLSX from "xlsx";
+import fs from "fs";
 // -------------------------------
 // Helper: parse JSON strings safely
 // -------------------------------
@@ -198,6 +199,10 @@ export const addProduct = async (req, res) => {
 // -------------------------------
 // 2. GET all products (super‑admin only – no storeId)
 // -------------------------------
+// -------------------------------
+// 2. GET all products (super‑admin only – no storeId)
+//    Now returns { data, total, totalPages, page, limit }
+// -------------------------------
 export const getAllProducts = async (req, res) => {
   try {
     let { page = 1, limit = 10, search, category, minPrice, maxPrice, published, featured, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
@@ -226,25 +231,24 @@ export const getAllProducts = async (req, res) => {
 
     const sort = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
 
-    const [products, total] = await Promise.all([
+    const [data, total] = await Promise.all([
       Product.find(filter).skip(skip).limit(limit).sort(sort).lean(),
       Product.countDocuments(filter),
     ]);
 
+    const totalPages = Math.ceil(total / limit);
+
+    // ─── Return flat pagination structure (matches category API) ───
     res.status(200).json({
-      success: true,
-      data: products,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      data,
+      total,
+      totalPages,
+      page,
+      limit,
     });
   } catch (error) {
     console.error('Error fetching products:', error);
     res.status(500).json({
-      success: false,
       message: 'Server error while fetching products',
       error: error.message,
     });
@@ -524,25 +528,161 @@ export const getCurrentStore = async (req, res) => {
   }
 };
 
-// ================= NEW: Get store by email =================
-// export const getStoreByEmail = async (req, res) => {
-//   try {
-//     const { email } = req.query;
-//     if (!email) {
-//       return res.status(400).json({ success: false, message: 'Email query parameter is required' });
-//     }
-//     const store = await MedicalStore.findOne({ emailAddress: email.toLowerCase() }).lean();
-//     if (!store) {
-//       return res.status(404).json({ success: false, message: 'No store found with this email' });
-//     }
-//     res.json({
-//       success: true,
-//       storeId: store._id,
-//       storeName: store.storeName,
-//       email: store.emailAddress
-//     });
-//   } catch (error) {
-//     console.error('Error in getStoreByEmail:', error);
-//     res.status(500).json({ success: false, message: 'Server error' });
-//   }
-// };
+// ============================================
+// BULK IMPORT / EXPORT (append to productController.js)
+// ============================================
+// ─── Helper: parse boolean from string ──────────────────
+const parseBoolean = (val) => {
+  if (typeof val === 'boolean') return val;
+  if (typeof val === 'string') {
+    const lower = val.toLowerCase().trim();
+    return lower === 'true' || lower === '1' || lower === 'yes';
+  }
+  return false;
+};
+
+// ─── BULK IMPORT ────────────────────────────────────────
+// ─── BULK IMPORT (FIXED) ────────────────────────────────────
+export const bulkImportProducts = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const filePath = req.file.path;
+    const workbook = XLSX.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(sheet);
+
+    fs.unlinkSync(filePath);
+
+    if (!data || data.length === 0) {
+      return res.status(400).json({ message: "File is empty or invalid" });
+    }
+
+    let imported = 0;
+    const errors = [];
+
+    // ─── Helper: get value from row (case‑insensitive) ───
+    const getValue = (row, key) => {
+      // Try exact match, then case‑insensitive
+      if (row[key] !== undefined) return row[key];
+      const lowerKey = key.toLowerCase();
+      for (const [col, val] of Object.entries(row)) {
+        if (col.toLowerCase() === lowerKey) return val;
+      }
+      return "";
+    };
+
+    for (const row of data) {
+      try {
+        // ─── Required fields ───
+        const productName = getValue(row, "productName*") || getValue(row, "productName") || getValue(row, "Name*");
+        if (!productName) {
+          errors.push({ row, error: "productName is required" });
+          continue;
+        }
+
+        // ─── Map each field explicitly ───
+        const productData = {
+          productName,
+          mainCategory: getValue(row, "mainCategory") || getValue(row, "Main Category") || "",
+          brand: getValue(row, "brand") || getValue(row, "Brand") || "",
+          unitPrice: parseFloat(getValue(row, "unitPrice")) || parseFloat(getValue(row, "Price")) || 0,
+          stock: parseInt(getValue(row, "stock")) || parseInt(getValue(row, "Quantity")) || 0,
+          sku: getValue(row, "sku") || getValue(row, "SKU") || "",
+          description: getValue(row, "description") || getValue(row, "Description") || "",
+          published: getValue(row, "published") === "true" || getValue(row, "Published") === "true" || false,
+          featured: getValue(row, "featured") === "true" || getValue(row, "Featured") === "true" || false,
+          todaysDeal: getValue(row, "todaysDeal") === "true" || getValue(row, "Todays Deal") === "true" || false,
+          refundable: getValue(row, "refundable") === "true" || getValue(row, "Refundable") === "true" || false,
+          unit: getValue(row, "unit") || getValue(row, "Unit") || "",
+          weight: parseFloat(getValue(row, "weight")) || parseFloat(getValue(row, "Weight")) || 0,
+          minPurchaseQty: parseInt(getValue(row, "minPurchaseQty")) || parseInt(getValue(row, "Min Purchase Qty")) || 1,
+          tags: getValue(row, "tags") || getValue(row, "Tags") ? String(getValue(row, "tags") || getValue(row, "Tags")).split(",").map(s => s.trim()) : [],
+          metaTitle: getValue(row, "metaTitle") || getValue(row, "Meta Title") || "",
+          metaDescription: getValue(row, "metaDescription") || getValue(row, "Meta Description") || "",
+          freeShipping: getValue(row, "freeShipping") === "true" || getValue(row, "Free Shipping") === "true" || true,
+          flatRate: getValue(row, "flatRate") === "true" || getValue(row, "Flat Rate") === "true" || false,
+          shippingDays: getValue(row, "shippingDays") || getValue(row, "Shipping Days") || "",
+          codAvailable: getValue(row, "codAvailable") === "true" || getValue(row, "COD Available") === "true" || false,
+          hsnCode: getValue(row, "hsnCode") || getValue(row, "HSN Code") || "",
+          gstRate: parseFloat(getValue(row, "gstRate")) || parseFloat(getValue(row, "GST Rate")) || 0,
+        };
+
+        // ─── Clamp gstRate between 0 and 100 ───
+        if (productData.gstRate < 0) productData.gstRate = 0;
+        if (productData.gstRate > 100) productData.gstRate = 0;
+
+        // ─── Save product ───
+        const product = new Product(productData);
+        await product.save();
+        imported++;
+      } catch (err) {
+        console.error("❌ Row error:", err);
+        console.error("🔴 Row data:", row);
+        errors.push({ row, error: err.message });
+      }
+    }
+
+    res.status(200).json({
+      message: `Imported ${imported} products`,
+      imported,
+      errors,
+    });
+  } catch (error) {
+    console.error("🔥 Bulk import fatal error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+// ─── BULK EXPORT ────────────────────────────────────────
+export const bulkExportProducts = async (req, res) => {
+  try {
+    const products = await Product.find().lean();
+
+    if (!products || products.length === 0) {
+      return res.status(404).json({ message: "No products found" });
+    }
+
+    const exportData = products.map((p) => ({
+      "Product Name": p.productName,
+      "Main Category": p.mainCategory,
+      "Brand": p.brand,
+      "Unit Price": p.unitPrice,
+      "Stock": p.stock,
+      "SKU": p.sku,
+      "Description": p.description,
+      "Published": p.published ? "Yes" : "No",
+      "Featured": p.featured ? "Yes" : "No",
+      "Todays Deal": p.todaysDeal ? "Yes" : "No",
+      "Refundable": p.refundable ? "Yes" : "No",
+      "Unit": p.unit,
+      "Weight": p.weight,
+      "Min Purchase Qty": p.minPurchaseQty,
+      "Tags": (p.tags || []).join(", "),
+      "Meta Title": p.metaTitle,
+      "Meta Description": p.metaDescription,
+      "Free Shipping": p.freeShipping ? "Yes" : "No",
+      "Flat Rate": p.flatRate ? "Yes" : "No",
+      "Shipping Days": p.shippingDays,
+      "COD Available": p.codAvailable ? "Yes" : "No",
+      "HSN Code": p.hsnCode,
+      "GST Rate": p.gstRate,
+      "Created At": p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Products");
+    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+
+    res.setHeader("Content-Disposition", 'attachment; filename="products_export.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(buffer);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
