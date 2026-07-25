@@ -42,7 +42,7 @@ import {
 
 } from "./controllers/productController.js";
 import { deleteRolePermissions, getRolePermissions, setRolePermissions } from "./controllers/rolePermissionController.js";
-import { createBrand, deleteBrand, getAllBrands, getBrandById, updateBrand } from "./controllers/brandController.js";
+import { bulkExportBrands, bulkImportBrands, createBrand, deleteBrand, getAllBrands, getBrandById, updateBrand } from "./controllers/brandController.js";
 import { createWarranty, deleteWarranty, getAllWarranties, getWarrantyById, updateWarranty } from "./controllers/warrantyController.js";
 import { createNote, deleteNote, getAllNotes, getNoteById, updateNote } from "./controllers/noteController.js";
 import { createAttribute, deleteAttribute, getAttributeById, getAttributes, updateAttribute } from "./controllers/attributeController.js";
@@ -198,6 +198,8 @@ router.put('/role-permissions/:roleName', setRolePermissions);
 router.delete('/role-permissions/:roleName', deleteRolePermissions);
 
 // ================= BRAND ROUTES =================
+router.post('/brands/bulk-import', multerConfig.single('file'), bulkImportBrands);
+router.get('/brands/export', bulkExportBrands);
 router.get('/brands', getAllBrands);
 router.get('/brands/:id', getBrandById);
 router.post('/brands', multerConfig.single('logo'), createBrand);

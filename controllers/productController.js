@@ -2,8 +2,10 @@
 import Product from '../model/AddProductPageModel.js';
 import StoreProductOverride from '../model/StoreProductOverride.js';
 import MedicalStore from '../model/MedicalstoreManagementModel.js'; // ✅ Add this import
+import Brand from '../model/Brand.js'; // ✅ Add this import
 import XLSX from "xlsx";
 import fs from "fs";
+import mongoose from 'mongoose';
 // -------------------------------
 // Helper: parse JSON strings safely
 // -------------------------------
@@ -205,13 +207,15 @@ export const addProduct = async (req, res) => {
 // -------------------------------
 export const getAllProducts = async (req, res) => {
   try {
-    let { page = 1, limit = 10, search, category, minPrice, maxPrice, published, featured, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    let { page = 1, limit = 10, search, category, minPrice, maxPrice, published, featured, brand, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
 
     page = Math.max(1, parseInt(page) || 1);
     limit = Math.min(100, Math.max(1, parseInt(limit) || 10));
     const skip = (page - 1) * limit;
 
     const filter = {};
+
+    // ─── Search ───
     if (search) {
       filter.$or = [
         { productName: { $regex: search, $options: 'i' } },
@@ -220,17 +224,52 @@ export const getAllProducts = async (req, res) => {
         { barcode: { $regex: search, $options: 'i' } },
       ];
     }
-    if (category) filter.mainCategory = { $regex: new RegExp(`^${category}$`, 'i') };
+
+    // ─── Category ───
+    if (category) {
+      filter.mainCategory = { $regex: new RegExp(`^${category}$`, 'i') };
+    }
+
+    // ─── Published / Featured ───
     if (published !== undefined) filter.published = published === 'true';
     if (featured !== undefined) filter.featured = featured === 'true';
+
+    // ─── Price range ───
     if (minPrice || maxPrice) {
       filter.unitPrice = {};
       if (minPrice) filter.unitPrice.$gte = parseFloat(minPrice);
       if (maxPrice) filter.unitPrice.$lte = parseFloat(maxPrice);
     }
 
+    // ─── Brand filter (FIXED) ───
+    if (brand) {
+      let brandName = null;
+
+      // Try to resolve the brand ID to its name
+      if (mongoose.Types.ObjectId.isValid(brand)) {
+        try {
+          const brandDoc = await Brand.findById(brand).select('name').lean();
+          if (brandDoc) {
+            brandName = brandDoc.name;
+          }
+        } catch (err) {
+          console.warn('Failed to resolve brand ID:', err);
+        }
+      }
+
+      // If brandName is still null, treat the input as a name directly
+      if (!brandName) {
+        brandName = brand;
+      }
+
+      // Filter by exact brand name (case‑insensitive)
+      filter.brand = { $regex: new RegExp(`^${brandName}$`, 'i') };
+    }
+
+    // ─── Sorting ───
     const sort = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
 
+    // ─── Execute queries ───
     const [data, total] = await Promise.all([
       Product.find(filter).skip(skip).limit(limit).sort(sort).lean(),
       Product.countDocuments(filter),
@@ -238,7 +277,6 @@ export const getAllProducts = async (req, res) => {
 
     const totalPages = Math.ceil(total / limit);
 
-    // ─── Return flat pagination structure (matches category API) ───
     res.status(200).json({
       data,
       total,
@@ -254,7 +292,6 @@ export const getAllProducts = async (req, res) => {
     });
   }
 };
-
 // -------------------------------
 // 3. GET a single product (super‑admin only – no storeId)
 // -------------------------------

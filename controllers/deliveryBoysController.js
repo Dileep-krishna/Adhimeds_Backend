@@ -71,17 +71,51 @@ export const addDeliveryBoy = async (req, res) => {
 };
 
 // ──────────────────────────────────────────────
-// GET ALL DELIVERY BOYS
+// GET ALL DELIVERY BOYS (with pagination, search, filter)
 // ──────────────────────────────────────────────
 export const getAllDeliveryBoys = async (req, res) => {
   try {
-    const deliveryBoys = await Deliveryboys.find().lean();
-    console.log('📦 Sending delivery boys with images:', deliveryBoys.map(b => ({
-      name: b.name,
-      aadharImage: b.aadharImage,
-      licenseImage: b.licenseImage
-    })));
-    res.status(200).json(deliveryBoys);
+    // ── Query params ──
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const status = req.query.status || 'all'; // all, active, inactive, pending
+
+    // ── Build filter ──
+    const filter = {};
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+      ];
+    }
+    if (status !== 'all') {
+      filter.status = status;
+    }
+
+    // ── Count total ──
+    const total = await Deliveryboys.countDocuments(filter);
+
+    // ── Fetch data with pagination ──
+    const deliveryBoys = await Deliveryboys.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    // ── Log (optional) ──
+    console.log(`📦 Sending ${deliveryBoys.length} of ${total} delivery boys (page ${page}/${Math.ceil(total/limit)})`);
+
+    const totalPages = Math.ceil(total / limit);
+
+    res.status(200).json({
+      data: deliveryBoys,
+      total,
+      totalPages,
+      page,
+      limit,
+    });
   } catch (error) {
     console.error("Get all error:", error);
     res.status(500).json({ success: false, message: error.message });
