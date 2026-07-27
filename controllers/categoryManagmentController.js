@@ -4,7 +4,24 @@ import XLSX from "xlsx";
 import fs from "fs";
 import Attribute from "../model/Attribute.js";
 
-// ================= CREATE CATEGORY =================
+// ─── Helper: parse filteringAttributes ───
+const parseFilteringAttributes = (input) => {
+  if (typeof input === 'string') {
+    try {
+      const parsed = JSON.parse(input);
+      if (Array.isArray(parsed)) {
+        return parsed.filter(id => mongoose.Types.ObjectId.isValid(id));
+      }
+    } catch {}
+    return [];
+  }
+  if (Array.isArray(input)) {
+    return input.filter(id => mongoose.Types.ObjectId.isValid(id));
+  }
+  return [];
+};
+
+// ================= CREATE CATEGORY (FIXED) =================
 export const createCategory = async (req, res) => {
   try {
     const {
@@ -21,9 +38,12 @@ export const createCategory = async (req, res) => {
       filteringAttributes,
     } = req.body;
 
+    // ─── Parse filteringAttributes ───
+    const validAttributes = parseFilteringAttributes(filteringAttributes);
+
     const newCategory = new Category({
       name,
-      type,
+      type: type || undefined,
       parent: parent || null,
       order: order || 0,
       isFeatured: isFeatured || false,
@@ -32,7 +52,7 @@ export const createCategory = async (req, res) => {
       metaTitle: metaTitle || "",
       metaDescription: metaDescription || "",
       metaKeywords: metaKeywords || "",
-      filteringAttributes: filteringAttributes || [],
+      filteringAttributes: validAttributes,
       icon: req.files?.icon?.[0]?.filename || "",
       coverImage: req.files?.coverImage?.[0]?.filename || "",
       banner: req.files?.banner?.[0]?.filename || "",
@@ -46,6 +66,7 @@ export const createCategory = async (req, res) => {
       data: newCategory,
     });
   } catch (error) {
+    console.error("🔥 Create category error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -105,59 +126,6 @@ export const getCategoryById = async (req, res) => {
 };
 
 // ================= UPDATE CATEGORY =================
-// export const updateCategory = async (req, res) => {
-//   try {
-//     const {
-//       name,
-//       type,
-//       parent,
-//       order,
-//       isFeatured,
-//       isHot,
-//       status,
-//       metaTitle,
-//       metaDescription,
-//       metaKeywords,
-//       filteringAttributes,
-//     } = req.body;
-
-//     const category = await Category.findById(req.params.id);
-//     if (!category) {
-//       return res.status(404).json({ message: "Category not found" });
-//     }
-
-//     let parentValue = parent;
-//     if (parentValue === "null" || parentValue === "") {
-//       parentValue = null;
-//     }
-
-//     if (name !== undefined) category.name = name;
-//     if (type !== undefined) category.type = type;
-//     category.parent = parentValue;
-//     if (order !== undefined) category.order = order;
-//     if (isFeatured !== undefined) category.isFeatured = isFeatured;
-//     if (isHot !== undefined) category.isHot = isHot;
-//     if (status !== undefined) category.status = status;
-//     if (metaTitle !== undefined) category.metaTitle = metaTitle;
-//     if (metaDescription !== undefined) category.metaDescription = metaDescription;
-//     if (metaKeywords !== undefined) category.metaKeywords = metaKeywords;
-//     if (filteringAttributes !== undefined) category.filteringAttributes = filteringAttributes;
-
-//     if (req.files?.icon) category.icon = req.files.icon[0].filename;
-//     if (req.files?.coverImage) category.coverImage = req.files.coverImage[0].filename;
-//     if (req.files?.banner) category.banner = req.files.banner[0].filename;
-
-//     await category.save();
-
-//     res.status(200).json({
-//       success: true,
-//       message: "Category updated successfully",
-//       data: category,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
 export const updateCategory = async (req, res) => {
   try {
     const {
@@ -185,16 +153,7 @@ export const updateCategory = async (req, res) => {
     }
 
     // ─── Parse filteringAttributes ───
-    let parsedAttributes = filteringAttributes;
-    if (typeof filteringAttributes === 'string') {
-      try {
-        parsedAttributes = JSON.parse(filteringAttributes);
-      } catch {
-        parsedAttributes = [];
-      }
-    }
-    if (!Array.isArray(parsedAttributes)) parsedAttributes = [];
-    const validAttributes = parsedAttributes.filter(id => mongoose.Types.ObjectId.isValid(id));
+    const validAttributes = parseFilteringAttributes(filteringAttributes);
 
     // ─── Update fields ───
     if (name !== undefined) category.name = name;
@@ -246,12 +205,9 @@ export const deleteCategory = async (req, res) => {
   }
 };
 
-// ================= BULK IMPORT (FIXED) =================
-
-
-
+// ================= BULK IMPORT =================
 export const bulkImportCategories = async (req, res) => {
-  console.log("🚀 bulkImportCategories called"); // ← this will log if the route is hit
+  console.log("🚀 bulkImportCategories called");
 
   try {
     if (!req.file) {
@@ -342,7 +298,6 @@ export const bulkImportCategories = async (req, res) => {
           }
         }
 
-        // ✅ Only keep valid ObjectIds
         const validAttributeIds = attributeIds.filter(id => mongoose.Types.ObjectId.isValid(id));
 
         if (!name) {
@@ -378,7 +333,7 @@ export const bulkImportCategories = async (req, res) => {
           }
         }
 
-        console.log(`📦 Saving: ${name}`); // log each success
+        console.log(`📦 Saving: ${name}`);
         const category = new Category(categoryData);
         await category.save();
         imported++;
@@ -398,6 +353,7 @@ export const bulkImportCategories = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 // ================= BULK EXPORT =================
 export const bulkExportCategories = async (req, res) => {
   try {
@@ -441,7 +397,6 @@ export const bulkExportCategories = async (req, res) => {
 // ================= DOWNLOAD TEMPLATE =================
 export const downloadTemplate = async (req, res) => {
   try {
-    // Sheet 1: Category Reference
     const categories = await Category.find().select("_id name parent").lean();
     const categoryData = categories.map((cat) => ({
       "Category ID": cat._id.toString(),
@@ -449,14 +404,12 @@ export const downloadTemplate = async (req, res) => {
       "Parent ID": cat.parent?._id || cat.parent || "",
     }));
 
-    // Sheet 2: Attribute Reference (you can replace with actual attribute fetch if you have the model)
     const attributeData = [
       { "Attribute ID": "attr_1", "Name": "Size" },
       { "Attribute ID": "attr_2", "Name": "Color" },
       { "Attribute ID": "attr_3", "Name": "Fabric" },
     ];
 
-    // Sheet 3: Import Template
     const templateData = [
       {
         "Name*": "Electronics",

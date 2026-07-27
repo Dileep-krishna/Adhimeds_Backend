@@ -48,20 +48,25 @@ import { createNote, deleteNote, getAllNotes, getNoteById, updateNote } from "./
 import { createAttribute, deleteAttribute, getAttributeById, getAttributes, updateAttribute } from "./controllers/attributeController.js";
 import { createColor, deleteColor, getColorById, getColors, updateColor } from "./controllers/colorController.js";
 import { createCustomReview, deleteCustomReview, getAllCustomReviews, getCustomReviewById, updateCustomReview } from "./controllers/customReviewController.js";
-import { adminLogin } from "./controllers/authController.js";
 import { storeLogin } from "./controllers/storeAuthController.js";
 import { verifyStoreToken } from "./middlewares/jwtMiddleware.js";
 import { staffLogin } from "./controllers/StaffLoginController.js";
 import { createOrder,  deleteItemFromOrder,  getAllOrders, getOrderById, updateItemStatus, updateOrderStatus, uploadBill, } from "./controllers/orderController.js";
 import {  createNotification, deleteAllNotifications, getNotifications, markNotificationRead } from "./controllers/notificationController.js";
 import { deleteProductAccess, getStoreProductDetails, getStoreProducts, updateProductAccess, updateStoreProductPriceStock } from "./controllers/storeProductAccessController.js";
+import { adminLogin, deleteAvatar, getCurrentAdmin, updateAdminProfile } from "./controllers/adminAuthController.js";
+import { protect } from "./middlewares/adminJwtMiddleware.js";
 
 const router = express.Router();
 
+// ================= ADMIN AUTH (STATIC ROUTES – must come first) =================
+router.post('/login', adminLogin);
+router.get('/me', protect, getCurrentAdmin);
+router.put('/update-profile', protect, multerConfig.single('avatar'), updateAdminProfile);
+router.delete('/avatar', protect, deleteAvatar);
+
+
 // ================= DELIVERY BOY ROUTES =================
-router.post("/test", (req, res) => {
-  res.status(200).json("working");
-});
 
 router.post(
   "/add",
@@ -248,8 +253,7 @@ customReviewRouter.put('/:id', uploadFields, updateCustomReview);
 customReviewRouter.delete('/:id', deleteCustomReview);
 router.use('/custom-reviews', customReviewRouter);
 
-// ================= ADMIN LOGIN =================
-router.post('/login', adminLogin);
+
 
 // ================= STORE LOGIN & AUTH =================
 router.post('/store/login', storeLogin);
